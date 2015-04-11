@@ -36,4 +36,4 @@
              [(or (eof-object? ch) (not (char-numeric? ch)))
               (* negate i)]
              [else
-              (loop (+ (* i 10) (- (char->integer ch) #x30)) (read-char port) negate)])))))))
+              (loop (+ (* i 10) (- (char->integer ch) #x30)) (read-char port) negate)]))))))
