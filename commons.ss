@@ -4,13 +4,15 @@
     *file-count*
     *query-file*
     *invidx-file*
-    *invidx-ss-file*)
+    *invidx-ss-file*
+    *vocab-file*)
   (define *vocab-count* 29908)
   (define *file-count* 46972)
   (define *model-prefix* "./model")
   (define *query-file* (string-append *model-prefix* "/query/query-train.xml"))
   (define *invidx-file* (string-append *model-prefix* "/inverted-file"))
-  (define *invidx-ss-file* (string-append *model-prefix* "/invidx.ss")))
+  (define *invidx-ss-file* (string-append *model-prefix* "/invidx.ss"))
+  (define *vocab-file* (string-append *model-prefix* "/vocab.all")))
 
 (define-module common
   (export
