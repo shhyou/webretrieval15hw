@@ -20,10 +20,12 @@
 
 (define *read-inv-idx* #f)
 (define *read-vocab* #t)
+(define *read-doclist* #t)
 
 (define *invidx* #f)
 (define *vocab-all* #f)      ; vector of string
 (define *vocab-all-inv* #f)  ; hash table from string to int
+(define *doclist* #f)
 
 (define (read-xml file-name xml-path)
   (call-with-input-file file-name
@@ -69,11 +71,38 @@
        [else (loop (+ pos 1) lst)])))
   (string->vocab-list (sxml:string-value ((car-sxpath '(title)) query))))
 
+(define (tf-idf docid vocab)
+  (let* ([pred? (if (= -1 (cdr vocab))
+                    vector?
+                    match-vocab2)]
+         [w1-invidx* (vector-ref *invidx* (car vocab))]
+         [idx (vector-index pred? w1-invidx*)]
+         [fileid* (vector-ref w1-invidx* idx)])
+    (define (tf)
+      (let
+        ([term-occurence
+          (vector-any
+            (lambda (fileid)
+              (cond [(and (pair? fileid) (= docid (car fileid))) (cdr fileid)]
+                    [(= docid fileid) 1]
+                    [else #f]))
+            fileid*)])
+       ; try log normalization for now
+       (if term-occurence (+ 1 (log term-occurence)) 0)))
+    (define (idf)
+      (define doc-occurence
+        (vector-length fileid*))
+      (log (/ *file-count* doc-occurence)))
+    (* (tf) (idf))))
+
 (define (test)
-  (define queries
-    (read-xml *query-file* *query-xml-path*))
-  (format #t "~a\n" (query->vocab-list ((node-pos 1) queries)))
-  #f)
+  (let*
+    ([queries (read-xml *query-file* *query-xml-path*)]
+     [vocab* (if *read-inv-idx*
+              (query->vocab-list ((node-pos 1) queries))
+              '((11602 -1 7709) (7709 -1 10635) (10635 -1 10588) (10588 -1 8640) (8640 -1 9632) (9632 -1 10877) (10877 -1 11043) (11043 -1 9634) (9634 -1 8780) (8780 -1)))])
+    (format #t "~a\n" vocab*)
+    (format #t "~a\n" (tf-idf 38365 '(1 . -1)))))
 
 (define (inverted-index-read)
   (call-with-input-file *invidx-ss-file* read))
@@ -91,6 +120,11 @@
      vocab-all)
     `(,vocab-all . ,vocab-hash)))
 
+(define (doclist-read)
+  (call-with-input-file *doclist-file*
+    (lambda (port)
+      (list->vector (port->string-list port)))))
+
 (define init-values
   (lambda ()
     (when *read-inv-idx*
@@ -101,6 +135,9 @@
       (match-let ([(vocab-all . vocab-hash) (vocab-read)])
         (set! *vocab-all* vocab-all)
         (set! *vocab-all-inv* vocab-hash)))
+    (when *read-doclist*
+      (format #t "~a (doclist-read)\n" (clock))
+      (set! *doclist* (doclist-read)))
     (format #t "~a init-values done\n" (clock))))
 
 (define main
