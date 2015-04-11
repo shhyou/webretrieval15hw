@@ -71,29 +71,53 @@
        [else (loop (+ pos 1) lst)])))
   (string->vocab-list (sxml:string-value ((car-sxpath '(title)) query))))
 
-(define (tf-idf docid vocab)
+(define (inverted-index-ref vocab)
+  (define (match-vocab2 w1-invidx*)
+    (and (pair? w1-invidx*) (= (cdr vocab) (car w1-invidx*))))
   (let* ([pred? (if (= -1 (cdr vocab))
-                    vector?
-                    match-vocab2)]
+                  vector?
+                  match-vocab2)]
          [w1-invidx* (vector-ref *invidx* (car vocab))]
          [idx (vector-index pred? w1-invidx*)]
-         [fileid* (vector-ref w1-invidx* idx)])
-    (define (tf)
-      (let
-        ([term-occurence
-          (vector-any
-            (lambda (fileid)
-              (cond [(and (pair? fileid) (= docid (car fileid))) (cdr fileid)]
-                    [(= docid fileid) 1]
-                    [else #f]))
-            fileid*)])
-       ; try log normalization for now
-       (if term-occurence (+ 1 (log term-occurence)) 0)))
-    (define (idf)
-      (define doc-occurence
-        (vector-length fileid*))
-      (log (/ *file-count* doc-occurence)))
-    (* (tf) (idf))))
+         [w2-fileid* (vector-ref w1-invidx* idx)])
+   (if (= -1 (cdr vocab)) w2-fileid* (cdr w2-fileid*))))
+
+(define (tf-idf docid vocab)
+  (define fileid* (inverted-index-ref vocab))
+  (define (tf)
+    (let
+      ([term-occurence
+        (vector-any
+          (lambda (fileid)
+            (cond [(and (pair? fileid) (= docid (car fileid))) (cdr fileid)]
+                  [(= docid fileid) 1]
+                  [else #f]))
+          fileid*)])
+     ; try log normalization for now
+     (if term-occurence (+ 1 (log term-occurence)) 0)))
+  (define (idf)
+    (define doc-occurence
+      (vector-length fileid*))
+    (log (/ *file-count* doc-occurence)))
+  (* (tf) (idf)))
+
+(define (merge-documents vocab-list)
+  (define (nub prev xs)
+    (cond [(null? xs) '()]
+          [(eq? prev (car xs)) (nub prev (cdr xs))]
+          [else (cons (car xs) (nub (car xs) (cdr xs)))]))
+  ($ nub #f $ vector->list $ sort $ apply vector-append ; temporary hack
+    (map
+     (lambda (w1-w2*)
+       (apply vector-append
+        (map
+         (lambda (w2)
+           (vector-map
+            (lambda (_ fileid)
+              (if (pair? fileid) (car fileid) fileid))
+            (inverted-index-ref `(,(car w1-w2*) . ,w2))))
+         (cdr w1-w2*))))
+     vocab-list)))
 
 (define (test)
   (let*
@@ -102,7 +126,10 @@
               (query->vocab-list ((node-pos 1) queries))
               '((11602 -1 7709) (7709 -1 10635) (10635 -1 10588) (10588 -1 8640) (8640 -1 9632) (9632 -1 10877) (10877 -1 11043) (11043 -1 9634) (9634 -1 8780) (8780 -1)))])
     (format #t "~a\n" vocab*)
-    (format #t "~a\n" (tf-idf 38365 '(1 . -1)))))
+    ;(format #t "~a\n" (tf-idf 33256 '(2 . 12371)))
+    ;(format #t "~a\n" (tf-idf 33689 '(1 . -1)))
+    (format #t "~a\n" (merge-documents '((1 -1) (2 -1) (3 6756))))
+    ))
 
 (define (inverted-index-read)
   (call-with-input-file *invidx-ss-file* read))
