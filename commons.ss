@@ -19,7 +19,7 @@
 (define-module common
   (export
    clock
-    read-int)
+   read-int)
   (define (clock)
     (use scheme.time :only (current-jiffy jiffies-per-second))
     (exact->inexact (/ (current-jiffy) (jiffies-per-second))))
