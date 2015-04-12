@@ -31,6 +31,8 @@
 (define *doclist* #f)
 (define *docmaxfreq* #f)
 (define *veclen* #f)
+(define *vecdot* #f)
+(define *querylen* #f)
 
 (define (read-xml file-name xml-path)
   (call-with-input-file file-name
@@ -113,7 +115,7 @@
              [w2-fileid* (vector-ref w1-invidx* idx)])
         (cdr w2-fileid*))])))
 
-(define (tf-idf docid vocab)
+(define (tf-idf-idf docid vocab)
   (define fileid* (inverted-index-ref vocab))
   (define (tf)
     (let
@@ -126,14 +128,12 @@
            fileid*)])
       ; try max freq normalization for now
       ;(if term-occurence (+ 1 (log term-occurence)) 0)))
-      (if term-occurence
-          (+ 0.5 (* 0.5 (/ term-occurence (vector-ref *docmaxfreq* docid))))
-          0)))
+      (if term-occurence term-occurence 0)))
   (define (idf)
     (define doc-occurence
       (vector-length fileid*))
     (log (/ *file-count* doc-occurence)))
-  (* (tf) (idf)))
+  (* (tf) (idf) (idf)))
 
 (define (merge-documents vocab*)
   (define (nub prev xs)
@@ -149,21 +149,16 @@
          (inverted-index-ref vocab)))
       vocab*)))
 
-(define (cos-dist d wq wd) ; `d` for `document`
-  (let loop ([wq wq] [wd wd] [dot 0.0] [wq2sum 0.0])
-    (if (null? wq)
-        (/ dot (* (sqrt wq2sum) (vector-ref *veclen* d)))
-        (let ([x (car wq)] [y (car wd)])
-          (loop (cdr wq) (cdr wd)
-                (+ dot (* x y))
-                (+ wq2sum (* x x)))))))
-
 (define *sample-vocab*
   '((11602 . 7709) (7709 . 10635) (10635 . 10588) (10588 . 8640) (8640 . 9632) (9632 . 10877) (10877 . 11043) (11043 . 9634) (9634 . 8780)))
 
 (define (retrieve query)
-  (define (get-vocab-idf vocab)
-    (log (/ *file-count* (vector-length (inverted-index-ref vocab)))))
+  (define (sum xs) (fold + 0.0 xs))
+  (define (get-wq-len vocab*)
+    (define (idf voocab)
+      (log (/ *file-count*
+              (vector-length (inverted-index-ref vocab)))))
+    (sqrt (+ *querylen* (* 0.75 (sum (map idf vocab*))))))
   (define vocab* (query->vocab-list query))
   (format #t "Retrieving ~a [~a]\n"
           vocab*
@@ -174,15 +169,18 @@
                           (vector-ref *vocab-all* (cdr vocab))))) vocab*))
   (let*
       ([docs (merge-documents vocab*)]
-       [wq (map get-vocab-idf vocab*)]
-       [docs-tfidf (begin
-                    (format #t "Total ~a document(s).\n" (length docs))
-                    (map (lambda (d)
-                           (when (= (mod d 800) 0) (format #t "~a " d)) (flush)
-                           (map (lambda (vocab) (tf-idf d vocab)) vocab*))
-                         docs))]
-       [docs-dist (map (lambda (d wd) `(,d . ,(cos-dist d wq wd)))
-                       docs docs-tfidf)])
+       [q (get-wq-len vocab*)]
+       [docs-tfidfidf
+        (begin
+          (format #t "Total ~a document(s).\n" (length docs))
+          (map (lambda (d)
+                 (when (< (mod d 500) 5) (format #t "~a " d)) (flush)
+                 (sum (map (lambda (vocab) (tf-idf-idf d vocab)) vocab*)))
+               docs))]
+        (map (lambda (d wd) `(,d . ,(/ (+ (vector-ref *vecdot* d)
+                                          (* 0.5 wd))
+                                       (vector-ref *veclen* d) q)))
+             docs docs-tfidfidf)])
     (set! docs-dist (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2)))))
     docs-dist))
 
@@ -209,7 +207,7 @@
                               *doc-xml-path*))])
              (format port "~a ~a\n" query-num-digit docfile-id)))
          (take*
-          (take-while (^d (>= (cdr d) 0.05))
+          (take-while (^d #t) ;(^d (>= (cdr d) 0.05))
                       doc-dist)
           100)))))))
 
@@ -238,7 +236,12 @@
   (call-with-input-file *docmaxfreq-file* read))
 
 (define (veclen-read)
-  (call-with-input-file *veclen-file* read))
+  (call-with-input-file *veclen-file*
+   (lambda (port)
+     (let* ([veclen (read port)]
+            [vecdot (read port)]
+            [querylen (read port)])
+      `(,veclen ,vecdot ,querylen)))))
 
 (define init-values
   (lambda ()
@@ -258,7 +261,10 @@
       (set! *docmaxfreq* (docmaxfreq-read)))
     (when *read-veclen*
       (format #t "~a (veclen-read)\n" (clock))
-      (set! *veclen* (veclen-read)))
+      (match-let ([(veclen vecdot querylen) (veclen-read)])
+        (set! *veclen* veclen)
+        (set! *vecdot* vecdot)
+        (set! *querylen* querylen)))
     (format #t "~a init-values done\n" (clock))))
 
 (define main
