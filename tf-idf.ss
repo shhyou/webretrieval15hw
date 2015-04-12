@@ -10,6 +10,7 @@
 (use sxml.sxpath :only (sxpath car-sxpath node-pos sxml:string-value))
 
 (use scheme.time)
+(use srfi-1      :only (take-while))
 (use srfi-13) ; string library
 (use srfi-43) ; vector library
 
@@ -177,13 +178,20 @@
     docs-dist))
 
 (define (test)
-  (let* ([queries (read-xml *query-file* *query-xml-path*)]
-         [docs-dist (retrieve ((node-pos 1) queries))])
-    (for-each
-     (lambda (d)
-       (format #t "~a ~a ~a\n" (cdr d) (car d) (vector-ref *doclist* (car d))))
-     (take docs-dist 20))
-    0))
+ (call-with-output-file "ans-test"
+  (lambda (port)
+    (do ([queries (read-xml *query-file* *query-xml-path*) (cdr queries)]
+         [i 1 (+ i 1)])
+        ([null? queries] 0)
+      (format #t "Processing query ~a...\n" i)
+      (let ([doc-dist (retrieve (car queries))])
+        (for-each
+         (lambda (d)
+           (format port "~a ~a\n" i (vector-ref *doclist* (car d))))
+         (take*
+          (take-while (^d (>= (cdr d) 0.6))
+                      doc-dist)
+          100)))))))
 
 (define (inverted-index-read)
   (call-with-input-file *invidx-ss-file* read))
