@@ -18,7 +18,7 @@
 (import parameter)
 (import (common :only (clock)))
 
-(define *read-inv-idx* #f)
+(define *read-inv-idx* #t)
 (define *read-vocab* #t)
 (define *read-doclist* #t)
 
@@ -35,6 +35,18 @@
 (define *query-xml-path* '(xml topic))
 (define *doc-xml-path* '(// doc))
 
+; for debug
+(define (vocab-list->string vocab*)
+  ($ apply string-append $ map
+    (lambda (w1-w2*)
+      ($ apply string-append $ map
+        (lambda (w2)
+          (format "~a ~a\n"
+            (vector-ref *vocab-all* (car w1-w2*))
+            (if (= -1 w2) -1 (vector-ref *vocab-all* w2))))
+        (cdr w1-w2*)))
+    vocab*))
+
 ; current only use title
 (define (query->vocab-list query)
   (define (string->vocab-list str)
@@ -49,7 +61,7 @@
                (lambda (vocab1 lst^ w1)
                  (define w1-len (string-length w1))
                  (define (check-w2*)
-                   (vector-fold-right
+                   (vector-fold
                     (lambda (_ lst^^ vocab2-with-invidx)
                       (if (pair? vocab2-with-invidx)
                           (let* ([vocab2 (car vocab2-with-invidx)]
@@ -57,15 +69,18 @@
                                  [w2-len (string-length w2)])
                             (cond [(string-prefix? w2 str 0 w2-len (+ pos w1-len))
                                    (vector-set! avail (+ pos w1-len w2-len) #t)
-                                   (cons vocab2 lst^^)]
+                                   (cons `(,vocab1 . ,vocab2) lst^^)]
                                   [else lst^^]))
                           (begin
                             (vector-set! avail (+ pos w1-len) #t)
-                            (cons -1 lst^^))))
-                    '()
+                            (let* ([ch (string-ref (vector-ref *vocab-all* vocab1) 0)]
+                                   [category (char-general-category ch)])
+                             (if (memq category '(Ll Lu Nd Lt Nl No))
+                                (cons `(,vocab1 . -1) lst^^)
+                                lst^^)))))
+                    lst^
                     (vector-ref *invidx* vocab1)))
-                 (cond [(string-prefix? w1 str 0 w1-len pos)
-                        (cons `(,vocab1 . ,(check-w2*)) lst^)]
+                 (cond [(string-prefix? w1 str 0 w1-len pos) (check-w2*)]
                        [else lst^]))
                lst *vocab-all*))]
        [else (loop (+ pos 1) lst)])))
@@ -74,13 +89,21 @@
 (define (inverted-index-ref vocab)
   (define (match-vocab2 w1-invidx*)
     (and (pair? w1-invidx*) (= (cdr vocab) (car w1-invidx*))))
-  (let* ([pred? (if (= -1 (cdr vocab))
-                  vector?
-                  match-vocab2)]
-         [w1-invidx* (vector-ref *invidx* (car vocab))]
-         [idx (vector-index pred? w1-invidx*)]
-         [w2-fileid* (vector-ref w1-invidx* idx)])
-   (if (= -1 (cdr vocab)) w2-fileid* (cdr w2-fileid*))))
+  (let ([w1-invidx* (vector-ref *invidx* (car vocab))])
+    (cond
+      [(vector-empty? w1-invidx*) #f]
+      [(= -1 (cdr vocab))
+       (if (vector? (vector-ref w1-invidx* 0))
+          (vector-ref w1-invidx* 0)
+          #f)]
+      [else
+       (let* ([cmp (^[a b] (cond [(< (car a) (car b)) -1]
+                                 [(> (car a) (car b)) 1]
+                                 [else 0]))]
+              [start-idx (if (vector? (vector-ref w1-invidx* 0)) 1 0)]
+              [idx (vector-binary-search w1-invidx* `(,(cdr vocab) . ()) cmp start-idx)]
+              [w2-fileid* (vector-ref w1-invidx* idx)])
+         (cdr w2-fileid*))])))
 
 (define (tf-idf docid vocab)
   (define fileid* (inverted-index-ref vocab))
@@ -101,35 +124,60 @@
     (log (/ *file-count* doc-occurence)))
   (* (tf) (idf)))
 
-(define (merge-documents vocab-list)
+(define (merge-documents vocab*)
   (define (nub prev xs)
     (cond [(null? xs) '()]
           [(eq? prev (car xs)) (nub prev (cdr xs))]
           [else (cons (car xs) (nub (car xs) (cdr xs)))]))
   ($ nub #f $ vector->list $ sort $ apply vector-append ; temporary hack
     (map
-     (lambda (w1-w2*)
-       (apply vector-append
-        (map
-         (lambda (w2)
-           (vector-map
-            (lambda (_ fileid)
-              (if (pair? fileid) (car fileid) fileid))
-            (inverted-index-ref `(,(car w1-w2*) . ,w2))))
-         (cdr w1-w2*))))
-     vocab-list)))
+     (lambda (vocab)
+       (vector-map
+        (lambda (_ fileid)
+          (if (pair? fileid) (car fileid) fileid))
+        (inverted-index-ref vocab)))
+     vocab*)))
+
+(define (cos-dist xs ys)
+  (let loop ([xs xs] [ys ys] [dot 0.0] [sumx2 0.0] [sumy2 0.0])
+    (if (null? xs)
+      (/ dot (* (sqrt sumx2) (sqrt sumy2)))
+      (let ([x (car xs)] [y (car ys)])
+        (loop (cdr xs) (cdr ys)
+              (+ dot (* x y))
+              (+ sumx2 (* x x))
+              (+ sumy2 (* y y)))))))
 
 (define (test)
+  (define (get-vocab-idf vocab)
+    (log (/ *file-count* (vector-length (inverted-index-ref vocab)))))
   (let*
     ([queries (read-xml *query-file* *query-xml-path*)]
      [vocab* (if *read-inv-idx*
               (query->vocab-list ((node-pos 1) queries))
-              '((11602 -1 7709) (7709 -1 10635) (10635 -1 10588) (10588 -1 8640) (8640 -1 9632) (9632 -1 10877) (10877 -1 11043) (11043 -1 9634) (9634 -1 8780) (8780 -1)))])
+              '((11602 . 7709) (7709 . 10635) (10635 . 10588) (10588 . 8640) (8640 . 9632) (9632 . 10877) (10877 . 11043) (11043 . 9634) (9634 . 8780)))]
+     [vocab-idf (map get-vocab-idf vocab*)]
+     [docs (merge-documents vocab*)]
+     [docs-tfidf (map (lambda (d)
+                       (when (= (mod d 200) 0) (format #t "~a\n" d))
+                       (map (lambda (vocab)
+                              (tf-idf d vocab)) vocab*)) docs)]
+     [docs-dist (map cons docs (map (lambda (d) (cos-dist d vocab-idf)) docs-tfidf))]
+     )
     (format #t "~a\n" vocab*)
+    (format #t "Total ~a document(s).\n" (length docs))
+    (format #t "~a\n" (map (lambda (vocab)
+                             `( ,(vector-ref *vocab-all* (car vocab))
+                              . ,(if (= -1 (cdr vocab))
+                                     -1
+                                     (vector-ref *vocab-all* (cdr vocab))))) vocab*))
+    (format #t "Example: ~a\n" (list-ref docs-tfidf 3))
+    (set! docs-dist (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2)))))
     ;(format #t "~a\n" (tf-idf 33256 '(2 . 12371)))
     ;(format #t "~a\n" (tf-idf 33689 '(1 . -1)))
-    (format #t "~a\n" (merge-documents '((1 -1) (2 -1) (3 6756))))
-    ))
+    ;(format #t "~a\n" (merge-documents '((1 -1) (2 -1) (3 6756))))
+    ;(format #t "~a\n" (length (merge-documents vocab*)))
+    docs-dist))
 
 (define (inverted-index-read)
   (call-with-input-file *invidx-ss-file* read))
