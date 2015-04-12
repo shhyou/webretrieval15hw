@@ -149,15 +149,14 @@
          (inverted-index-ref vocab)))
       vocab*)))
 
-(define (cos-dist xs ys)
-  (let loop ([xs xs] [ys ys] [dot 0.0] [sumx2 0.0] [sumy2 0.0])
-    (if (null? xs)
-        (/ dot (* (sqrt sumx2) (sqrt sumy2)))
-        (let ([x (car xs)] [y (car ys)])
-          (loop (cdr xs) (cdr ys)
+(define (cos-dist d wq wd) ; `d` for `document`
+  (let loop ([wq wq] [wd wd] [dot 0.0] [wq2sum 0.0])
+    (if (null? wq)
+        (/ dot (* (sqrt wq2sum) (vector-ref *veclen* d)))
+        (let ([x (car wq)] [y (car wd)])
+          (loop (cdr wq) (cdr wd)
                 (+ dot (* x y))
-                (+ sumx2 (* x x))
-                (+ sumy2 (* y y)))))))
+                (+ wq2sum (* x x)))))))
 
 (define *sample-vocab*
   '((11602 . 7709) (7709 . 10635) (10635 . 10588) (10588 . 8640) (8640 . 9632) (9632 . 10877) (10877 . 11043) (11043 . 9634) (9634 . 8780)))
@@ -175,16 +174,15 @@
                           (vector-ref *vocab-all* (cdr vocab))))) vocab*))
   (let*
       ([docs (merge-documents vocab*)]
-       [vocab-idf (map get-vocab-idf vocab*)]
+       [wq (map get-vocab-idf vocab*)]
        [docs-tfidf (begin
                     (format #t "Total ~a document(s).\n" (length docs))
                     (map (lambda (d)
                            (when (= (mod d 800) 0) (format #t "~a " d)) (flush)
                            (map (lambda (vocab) (tf-idf d vocab)) vocab*))
                          docs))]
-       [docs-dist (map cons docs
-                       (map (lambda (d) (cos-dist d vocab-idf))
-                            docs-tfidf))])
+       [docs-dist (map (lambda (d wd) `(,d . ,(cos-dist d wq wd)))
+                       docs docs-tfidf)])
     (set! docs-dist (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2)))))
     docs-dist))
 
@@ -211,7 +209,7 @@
                               *doc-xml-path*))])
              (format port "~a ~a\n" query-num-digit docfile-id)))
          (take*
-          (take-while (^d (>= (cdr d) 0.6))
+          (take-while (^d (>= (cdr d) 0.05))
                       doc-dist)
           100)))))))
 
