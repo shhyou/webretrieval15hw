@@ -10,7 +10,7 @@
     (call-with-input-file *invidx-ss-file* read))
   (vector-for-each-with-index
    (lambda (vocab1 w1-invidx*)
-     (vector-for-each-with-index
+     (vector-for-each
       (lambda (w2-fileid*)
         (define fileid*
           (if (vector? w2-fileid*)
@@ -22,11 +22,13 @@
              (if (pair? fileid-cnt) (car fileid-cnt) fileid-cnt))
            (define cnt
              (if (pair? fileid-cnt) (cdr fileid-cnt) 1))
+           ;(when (> cnt 1) (format #t "file ~a cnt ~a\n" fileid cnt))
            (vector-set! docmaxfreq fileid
                         (max cnt (vector-ref docmaxfreq fileid))))
          fileid*))
       w1-invidx*))
-   invidx))
+   invidx)
+  docmaxfreq)
 
 (define (main args)
   (call-with-output-file *docmaxfreq-file*
