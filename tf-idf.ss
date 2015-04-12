@@ -177,6 +177,7 @@
                  (when (< (mod d 500) 5) (format #t "~a " d)) (flush)
                  (sum (map (lambda (vocab) (tf-idf-idf d vocab)) vocab*)))
                docs))]
+       [docs-dist
         (map (lambda (d wd) `(,d . ,(/ (+ (vector-ref *vecdot* d)
                                           (* 0.5 wd))
                                        (vector-ref *veclen* d) q)))
