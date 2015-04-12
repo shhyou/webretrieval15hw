@@ -27,7 +27,7 @@
                             (lambda (idx)
                               (let* ([fileidx (read-int port)]
                                      [cnt (read-int port)])
-                                (if (> 1 cnt)
+                                (if (> cnt 1)
                                     `(,fileidx . ,cnt)
                                     fileidx))))])
               (vector-set!
