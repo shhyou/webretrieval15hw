@@ -116,7 +116,7 @@
           (vector-any
            (lambda (fileid)
              (cond [(and (pair? fileid) (= docid (car fileid))) (cdr fileid)]
-                   [(= docid fileid) 1]
+                   [(and (number? fileid) (= docid fileid)) 1]
                    [else #f]))
            fileid*)])
       ; try log normalization for now
@@ -224,7 +224,7 @@
     (lambda (port)
       (list->vector (port->string-list port)))))
 
-(define (doclist-read)
+(define (docmaxfreq-read)
   (call-with-input-file *docmaxfreq-file* read))
 
 (define init-values
@@ -241,7 +241,7 @@
       (format #t "~a (doclist-read)\n" (clock))
       (set! *doclist* (doclist-read)))
     (when *read-docmaxfreq*
-      (format #t "~a (doclist-read)\n" (clock))
+      (format #t "~a (docmaxfreq-read)\n" (clock))
       (set! *docmaxfreq* (docmaxfreq-read)))
     (format #t "~a init-values done\n" (clock))))
 
