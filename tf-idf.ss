@@ -116,7 +116,7 @@
                    [(= docid fileid) 1]
                    [else #f]))
            fileid*)])
-                                        ; try log normalization for now
+      ; try log normalization for now
       (if term-occurence (+ 1 (log term-occurence)) 0)))
   (define (idf)
     (define doc-occurence
@@ -148,35 +148,42 @@
                 (+ sumx2 (* x x))
                 (+ sumy2 (* y y)))))))
 
-(define (test)
+(define *sample-vocab*
+  '((11602 . 7709) (7709 . 10635) (10635 . 10588) (10588 . 8640) (8640 . 9632) (9632 . 10877) (10877 . 11043) (11043 . 9634) (9634 . 8780)))
+
+(define (retrieve query)
   (define (get-vocab-idf vocab)
     (log (/ *file-count* (vector-length (inverted-index-ref vocab)))))
+  (define vocab* (query->vocab-list query))
+  (format #t "Retrieving ~a [~a]\n"
+          vocab*
+          (map (lambda (vocab)
+                 `(,(vector-ref *vocab-all* (car vocab))
+                   . ,(if (= -1 (cdr vocab))
+                          -1
+                          (vector-ref *vocab-all* (cdr vocab))))) vocab*))
   (let*
-      ([queries (read-xml *query-file* *query-xml-path*)]
-       [vocab* (if *read-inv-idx*
-                   (query->vocab-list ((node-pos 1) queries))
-                   '((11602 . 7709) (7709 . 10635) (10635 . 10588) (10588 . 8640) (8640 . 9632) (9632 . 10877) (10877 . 11043) (11043 . 9634) (9634 . 8780)))]
+      ([docs (merge-documents vocab*)]
        [vocab-idf (map get-vocab-idf vocab*)]
-       [docs (merge-documents vocab*)]
        [docs-tfidf (map (lambda (d)
                           (when (= (mod d 200) 0) (format #t "~a\n" d))
-                          (map (lambda (vocab)
-                                 (tf-idf d vocab)) vocab*)) docs)]
-       [docs-dist (map cons docs (map (lambda (d) (cos-dist d vocab-idf)) docs-tfidf))])
-    (format #t "~a\n" vocab*)
+                          (map (lambda (vocab) (tf-idf d vocab)) vocab*))
+                        docs)]
+       [docs-dist (map cons docs
+                       (map (lambda (d) (cos-dist d vocab-idf))
+                            docs-tfidf))])
     (format #t "Total ~a document(s).\n" (length docs))
-    (format #t "~a\n" (map (lambda (vocab)
-                             `( ,(vector-ref *vocab-all* (car vocab))
-                                . ,(if (= -1 (cdr vocab))
-                                       -1
-                                       (vector-ref *vocab-all* (cdr vocab))))) vocab*))
-    (format #t "Example: ~a\n" (list-ref docs-tfidf 3))
     (set! docs-dist (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2)))))
-    ;(format #t "~a\n" (tf-idf 33256 '(2 . 12371)))
-    ;(format #t "~a\n" (tf-idf 33689 '(1 . -1)))
-    ;(format #t "~a\n" (merge-documents '((1 -1) (2 -1) (3 6756))))
-    ;(format #t "~a\n" (length (merge-documents vocab*)))
     docs-dist))
+
+(define (test)
+  (let* ([queries (read-xml *query-file* *query-xml-path*)]
+         [docs-dist (retrieve ((node-pos 1) queries))])
+    (for-each
+     (lambda (d)
+       (format #t "~a ~a ~a\n" (cdr d) (car d) (vector-ref *doclist* (car d))))
+     (take docs-dist 20))
+    0))
 
 (define (inverted-index-read)
   (call-with-input-file *invidx-ss-file* read))
