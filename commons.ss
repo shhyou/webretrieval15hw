@@ -9,7 +9,8 @@
    *invidx-ss-file*
    *vocab-file*
    *doclist-file*
-   *docmaxfreq-file*)
+   *docmaxfreq-file*
+   *veclen-file*)
   (define *vocab-count* 29908)
   (define *file-count* 46972)
   (define *output-file* "./ans-train-my")
@@ -20,7 +21,8 @@
   (define *invidx-ss-file* (string-append *model-prefix* "/invidx.ss"))
   (define *vocab-file* (string-append *model-prefix* "/vocab.all"))
   (define *doclist-file* (string-append *model-prefix* "/file-list"))
-  (define *docmaxfreq-file* (string-append *model-prefix* "/docmaxfreq.ss")))
+  (define *docmaxfreq-file* (string-append *model-prefix* "/docmaxfreq.ss"))
+  (define *veclen-file* (string-append *model-prefix* "/veclen.ss")))
 
 (define-module common
   (export

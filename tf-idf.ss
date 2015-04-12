@@ -23,12 +23,14 @@
 (define *read-vocab* #t)
 (define *read-doclist* #t)
 (define *read-docmaxfreq* #t)
+(define *read-veclen* #t)
 
 (define *invidx* #f)
 (define *vocab-all* #f)      ; vector of string
 (define *vocab-all-inv* #f)  ; hash table from string to int
 (define *doclist* #f)
 (define *docmaxfreq* #f)
+(define *veclen* #f)
 
 (define (read-xml file-name xml-path)
   (call-with-input-file file-name
@@ -237,6 +239,9 @@
 (define (docmaxfreq-read)
   (call-with-input-file *docmaxfreq-file* read))
 
+(define (veclen-read)
+  (call-with-input-file *veclen-file* read))
+
 (define init-values
   (lambda ()
     (when *read-inv-idx*
@@ -253,6 +258,9 @@
     (when *read-docmaxfreq*
       (format #t "~a (docmaxfreq-read)\n" (clock))
       (set! *docmaxfreq* (docmaxfreq-read)))
+    (when *read-veclen*
+      (format #t "~a (veclen-read)\n" (clock))
+      (set! *veclen* (veclen-read)))
     (format #t "~a init-values done\n" (clock))))
 
 (define main
