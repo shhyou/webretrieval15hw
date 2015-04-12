@@ -7,7 +7,8 @@
    *invidx-file*
    *invidx-ss-file*
    *vocab-file*
-   *doclist-file*)
+   *doclist-file*
+   *docmaxfreq-file*)
   (define *vocab-count* 29908)
   (define *file-count* 46972)
   (define *model-prefix* "./model")
@@ -16,7 +17,8 @@
   (define *invidx-file* (string-append *model-prefix* "/inverted-file"))
   (define *invidx-ss-file* (string-append *model-prefix* "/invidx.ss"))
   (define *vocab-file* (string-append *model-prefix* "/vocab.all"))
-  (define *doclist-file* (string-append *model-prefix* "/file-list")))
+  (define *doclist-file* (string-append *model-prefix* "/file-list"))
+  (define *docmaxfreq-file* (string-append *model-prefix* "/docmaxfreq.ss")))
 
 (define-module common
   (export
