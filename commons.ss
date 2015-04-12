@@ -2,6 +2,7 @@
   (export
    *vocab-count*
    *file-count*
+   *NTCIR-prefix*
    *query-file*
    *invidx-file*
    *invidx-ss-file*
@@ -10,6 +11,7 @@
   (define *vocab-count* 29908)
   (define *file-count* 46972)
   (define *model-prefix* "./model")
+  (define *NTCIR-prefix* "./model/CIRB010")
   (define *query-file* (string-append *model-prefix* "/query/query-train.xml"))
   (define *invidx-file* (string-append *model-prefix* "/inverted-file"))
   (define *invidx-ss-file* (string-append *model-prefix* "/invidx.ss"))

@@ -180,14 +180,22 @@
 (define (test)
  (call-with-output-file "ans-test"
   (lambda (port)
-    (do ([queries (read-xml *query-file* *query-xml-path*) (cdr queries)]
-         [i 1 (+ i 1)])
+    (do ([queries (read-xml *query-file* *query-xml-path*) (cdr queries)])
         ([null? queries] 0)
-      (format #t "Processing query ~a...\n" i)
-      (let ([doc-dist (retrieve (car queries))])
+      (let* ([query (car queries)]
+             [query-num (sxml:string-value ((car-sxpath '(number)) (car queries)))]
+             [query-num-len (string-length query-num)]
+             [query-num-digit (substring query-num (- query-num-len 3) query-num-len)]
+             [doc-dist (retrieve query)])
         (for-each
          (lambda (d)
-           (format port "~a ~a\n" i (vector-ref *doclist* (car d))))
+           (let* ([docfile (vector-ref *doclist* (car d))]
+                  [docfile-real (substring docfile 7 (string-length docfile))]
+                  [docfile-id
+                   ($ sxml:string-value $ (car-sxpath '(id))
+                    (read-xml (string-append *NTCIR-prefix* docfile-real)
+                              *doc-xml-path*))])
+             (format port "~a ~a\n" query-num-digit docfile-id)))
          (take*
           (take-while (^d (>= (cdr d) 0.6))
                       doc-dist)
