@@ -155,7 +155,7 @@
 (define (retrieve query)
   (define (sum xs) (fold + 0.0 xs))
   (define (get-wq-len vocab*)
-    (define (idf voocab)
+    (define (idf vocab)
       (log (/ *file-count*
               (vector-length (inverted-index-ref vocab)))))
     (sqrt (+ *querylen* (* 0.75 (sum (map idf vocab*))))))
@@ -174,7 +174,7 @@
         (begin
           (format #t "Total ~a document(s).\n" (length docs))
           (map (lambda (d)
-                 (when (< (mod d 500) 5) (format #t "~a " d)) (flush)
+                 (when (< (mod d 1000) 5) (format #t "~a " d)) (flush)
                  (sum (map (lambda (vocab) (tf-idf-idf d vocab)) vocab*)))
                docs))]
        [docs-dist
