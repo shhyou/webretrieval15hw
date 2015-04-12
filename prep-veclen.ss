@@ -18,10 +18,6 @@
           (if (vector? w2-fileid*)
               w2-fileid*
               (cdr w2-fileid*)))
-        (define vocab2
-           (if (vector? w2-fileid*)
-               -1
-               (car w2-fileid*)))
         (vector-for-each
          (lambda (fileid-cnt)
            (define fileid
@@ -37,6 +33,7 @@
          fileid*))
       w1-invidx*))
    invidx)
+  (vector-map! sqrt veclen)
   veclen)
 
 (define (main args)
