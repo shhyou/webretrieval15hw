@@ -87,7 +87,10 @@
                        [else lst^]))
                lst *vocab-all*))]
        [else (loop (+ pos 1) lst)])))
-  (string->vocab-list (sxml:string-value ((car-sxpath '(title)) query))))
+  (string->vocab-list
+   (string-delete #[一不之也了了人他你個們在就我是有的而要說這都，。；「」]
+    (string-trim-both
+     (sxml:string-value ((car-sxpath '(title)) query))))))
 
 (define (inverted-index-ref vocab)
   (define (match-vocab2 w1-invidx*)
@@ -119,8 +122,11 @@
                    [(and (number? fileid) (= docid fileid)) 1]
                    [else #f]))
            fileid*)])
-      ; try log normalization for now
-      (if term-occurence (+ 1 (log term-occurence)) 0)))
+      ; try max freq normalization for now
+      ;(if term-occurence (+ 1 (log term-occurence)) 0)))
+      (if term-occurence
+          (+ 0.5 (* 0.5 (/ term-occurence (vector-ref *docmaxfreq* docid))))
+          0)))
   (define (idf)
     (define doc-occurence
       (vector-length fileid*))
@@ -168,22 +174,26 @@
   (let*
       ([docs (merge-documents vocab*)]
        [vocab-idf (map get-vocab-idf vocab*)]
-       [docs-tfidf (map (lambda (d)
-                          (when (= (mod d 200) 0) (format #t "~a\n" d))
-                          (map (lambda (vocab) (tf-idf d vocab)) vocab*))
-                        docs)]
+       [docs-tfidf (begin
+                    (format #t "Total ~a document(s).\n" (length docs))
+                    (map (lambda (d)
+                           (when (= (mod d 800) 0) (format #t "~a " d)) (flush)
+                           (map (lambda (vocab) (tf-idf d vocab)) vocab*))
+                         docs))]
        [docs-dist (map cons docs
                        (map (lambda (d) (cos-dist d vocab-idf))
                             docs-tfidf))])
-    (format #t "Total ~a document(s).\n" (length docs))
     (set! docs-dist (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2)))))
     docs-dist))
 
 (define (test)
- (call-with-output-file "ans-test"
+ (call-with-output-file *output-file*
   (lambda (port)
-    (do ([queries (read-xml *query-file* *query-xml-path*) (cdr queries)])
+    (do ([queries (read-xml *query-file* *query-xml-path*) (cdr queries)]
+         [i 0 (+ i 1)])
         ([null? queries] 0)
+        ;([= i 3] 0)
+      (format #t "Retrieving ~a...\n" i)
       (let* ([query (car queries)]
              [query-num (sxml:string-value ((car-sxpath '(number)) (car queries)))]
              [query-num-len (string-length query-num)]

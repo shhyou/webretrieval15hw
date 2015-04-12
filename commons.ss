@@ -2,6 +2,7 @@
   (export
    *vocab-count*
    *file-count*
+   *output-file*
    *NTCIR-prefix*
    *query-file*
    *invidx-file*
@@ -11,6 +12,7 @@
    *docmaxfreq-file*)
   (define *vocab-count* 29908)
   (define *file-count* 46972)
+  (define *output-file* "./ans-train-my")
   (define *model-prefix* "./model")
   (define *NTCIR-prefix* "./model/CIRB010")
   (define *query-file* (string-append *model-prefix* "/query/query-train.xml"))
