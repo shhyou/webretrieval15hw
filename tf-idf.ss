@@ -45,17 +45,16 @@
 ; for debug
 (define (vocab-list->string vocab*)
   ($ apply string-append $ map
-     (lambda (w1-w2*)
-       ($ apply string-append $ map
-          (lambda (w2)
-            (format "~a ~a\n"
-                    (vector-ref *vocab-all* (car w1-w2*))
-                    (if (= -1 w2) -1 (vector-ref *vocab-all* w2))))
-          (cdr w1-w2*)))
+     (lambda (vocab)
+       (define w1 (car vocab))
+       (define w2 (cdr vocab))
+       (format "(~a~a)"
+               (vector-ref *vocab-all* w1)
+               (if (= -1 w2) "" (vector-ref *vocab-all* w2))))
      vocab*))
 
 ; current only use title
-(define (query->vocab-list query)
+(define (query->vocab-list query item)
   (define (string->vocab-list str)
     (define avail (make-vector (+ 1 (string-length str)) #f))
     (vector-set! avail 0 #t)
@@ -92,9 +91,9 @@
                lst *vocab-all*))]
        [else (loop (+ pos 1) lst)])))
   (string->vocab-list
-   (string-delete #[一不之也了了人他你個們在就我是有的而要說這都，。；「」]
+   (string-delete #[一不之也了了人他你個們在就我是有的而要說這都，。；「」、]
     (string-trim-both
-     (sxml:string-value ((car-sxpath '(title)) query))))))
+     (sxml:string-value ((car-sxpath `(,item)) query))))))
 
 (define (inverted-index-ref vocab)
   (define (match-vocab2 w1-invidx*)
@@ -155,33 +154,39 @@
 (define (retrieve query)
   (define (sum xs) (fold + 0.0 xs))
   (define (get-wq-len vocab*)
-    (define (idf voocab)
+    (define (idf vocab)
       (log (/ *file-count*
               (vector-length (inverted-index-ref vocab)))))
     (sqrt (+ *querylen* (* 0.75 (sum (map idf vocab*))))))
-  (define vocab* (query->vocab-list query))
-  (format #t "Retrieving ~a [~a]\n"
-          vocab*
-          (map (lambda (vocab)
-                 `(,(vector-ref *vocab-all* (car vocab))
-                   . ,(if (= -1 (cdr vocab))
-                          -1
-                          (vector-ref *vocab-all* (cdr vocab))))) vocab*))
+  (define vocab-title* (query->vocab-list query 'title))
+  (format #t "Retrieving [~a]\n" (vocab-list->string vocab-title*))
   (let*
-      ([docs (merge-documents vocab*)]
+      ([docs (merge-documents vocab-title*)]
+       ; [docs '(65 7248)] ; debug
+       [vocab* (query->vocab-list query 'concepts)]
+       [tt (format #t "Ranking by [~a]\n"
+                   (vocab-list->string vocab*))]
        [q (get-wq-len vocab*)]
        [docs-tfidfidf
         (begin
           (format #t "Total ~a document(s).\n" (length docs))
           (map (lambda (d)
-                 (when (< (mod d 500) 5) (format #t "~a " d)) (flush)
+                 (when (< (mod d 100) 5)
+                  (format #t "\r~a%               "
+                   (/ (round (/ (* 10000.0 d) *file-count*)) 100.0))
+                  (flush))
                  (sum (map (lambda (vocab) (tf-idf-idf d vocab)) vocab*)))
                docs))]
        [docs-dist
-        (map (lambda (d wd) `(,d . ,(/ (+ (vector-ref *vecdot* d)
-                                          (* 0.5 wd))
+        (map (lambda (d wd) `(,d . ,(/ wd
                                        (vector-ref *veclen* d) q)))
              docs docs-tfidfidf)])
+    ;(format #t "q = ~a\ndocs-tfidfidf = ~a\nvecdot = ~a\nveclen = ~a\ndocs-dist = ~a\n"
+    ;   q docs-tfidfidf
+    ;   (map (^x (vector-ref *vecdot* x)) docs)
+    ;   (map (^x (vector-ref *veclen* x)) docs)
+    ;   docs-dist)
+    ;(format #t "~a\n" (map (^x (vector-ref *doclist* x)) docs))
     (set! docs-dist (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2)))))
     docs-dist))
 
@@ -191,7 +196,7 @@
     (do ([queries (read-xml *query-file* *query-xml-path*) (cdr queries)]
          [i 0 (+ i 1)])
         ([null? queries] 0)
-        ;([= i 3] 0)
+        ;([= i 1] 0)
       (format #t "Retrieving ~a...\n" i)
       (let* ([query (car queries)]
              [query-num (sxml:string-value ((car-sxpath '(number)) (car queries)))]
@@ -208,7 +213,7 @@
                               *doc-xml-path*))])
              (format port "~a ~a\n" query-num-digit docfile-id)))
          (take*
-          (take-while (^d #t) ;(^d (>= (cdr d) 0.05))
+          (take-while (^d (>= (cdr d) 1e-4))
                       doc-dist)
           100)))))))
 
