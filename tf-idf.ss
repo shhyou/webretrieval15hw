@@ -93,9 +93,8 @@
   (define (split-vocab vocab*)
     (define splitter
       #[ \r\n\t一不之也了了人他你個們在就我是有的而要說這都，。；「」、])
-    (remove string-empty?
-            (string-split vocab* splitter)))
-  ($ append $ map string->vocab-list $ split-vocab
+    (remove string-null? (string-split vocab* splitter)))
+  ($ apply append $ map string->vocab-list $ split-vocab
    (sxml:string-value ((car-sxpath `(,item)) query))))
 
 (define (inverted-index-ref vocab)
