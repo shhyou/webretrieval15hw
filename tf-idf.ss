@@ -19,13 +19,17 @@
 (import parameter)
 (import (common :only (clock)))
 
-(define *read-inv-idx* #t)
+(define *read-invidx* #t)
+(define *read-posidx* #t)
 (define *read-vocab* #t)
 (define *read-doclist* #t)
 (define *read-docmaxfreq* #t)
 (define *read-veclen* #t)
 
+(define *enable-rocchio* #t)
+
 (define *invidx* #f)
+(define *posidx* #f)
 (define *vocab-all* #f)      ; vector of string
 (define *vocab-all-inv* #f)  ; hash table from string to int
 (define *doclist* #f)
@@ -188,7 +192,12 @@
     ;   (map (^x (vector-ref *veclen* x)) docs)
     ;   docs-dist)
     ;(format #t "~a\n" (map (^x (vector-ref *doclist* x)) docs))
-    (set! docs-dist (take* (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2)))) maximum))
+    (set! docs-dist
+          (take* (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2)))) maximum))
+    (when *enable-rocchio*
+      (let* () #f)
+      (set! docs-dist
+            (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2))))))
     docs-dist))
 
 (define (test)
@@ -216,8 +225,11 @@
            (take-while (^d (>= (cdr d) 1e-4))
                         doc-dist)))))))
 
-(define (inverted-index-read)
+(define (invidx-read)
   (call-with-input-file *invidx-ss-file* read))
+
+(define (posidx-read)
+  (call-with-input-file *posidx-file* read))
 
 (define (vocab-read)
   (define vocab-hash
@@ -251,9 +263,12 @@
 
 (define init-values
   (lambda ()
-    (when *read-inv-idx*
-      (format #t "~a (inverted-index-read)\n" (clock))
-      (set! *invidx* (inverted-index-read)))
+    (when *read-invidx*
+      (format #t "~a (invidx-read)\n" (clock))
+      (set! *invidx* (invidx-read)))
+    (when *read-posidx*
+      (format #t "~a (posidx-read)\n" (clock))
+      (set! *posidx* (posidx-read)))
     (when *read-vocab*
       (format #t "~a (vocab-read)\n" (clock))
       (match-let ([(vocab-all . vocab-hash) (vocab-read)])
