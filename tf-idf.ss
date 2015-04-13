@@ -17,19 +17,20 @@
 (require "./commons.ss")
 
 (import parameter)
-(import (common :only (clock)))
+(import (common :only (sum clock)))
 
 (define *read-invidx* #t)
-(define *read-posidx* #f)
+(define *read-posidx* #t)
 (define *read-vocab* #t)
 (define *read-doclist* #t)
 (define *read-docmaxfreq* #t)
 (define *read-veclen* #t)
 
 (define *enable-rocchio* #t)
-(define *num-relevent* 5)
+(define *num-relevent* 3)
+(define *num-rerank* 20)
 (define *a* 1)
-(define *b* 0.8)
+(define *b* 0.5)
 ; irrevelent documents (c) are omitted
 
 (define *invidx* #f)
@@ -206,6 +207,7 @@
                    (flush))
                  (sum (map (lambda (vocab) (tf-idf-idf d vocab)) vocab*)))
                docs))]
+       [docs-assoc-tfidfidf (map cons docs docs-tfidfidf)]
        [docs-dist
         (map (lambda (d wd) `(,d . ,(/ wd (vector-ref *veclen* d))))
              docs docs-tfidfidf)])
@@ -218,24 +220,28 @@
     (set! docs-dist
           (take* (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2)))) maximum))
     (when *enable-rocchio*
-      (format #t "Re-ranking document by Rocchio...\n")
+      (format #t "Re-ranking document by Rocchio ") (flush)
       (set!
        docs-dist
-       (map (lambda (d wd)
-             (define docdot*
-               (map
-                (lambda (i)
-                 (let* ([d-rel (car (list-ref docs-dist i))]
-                        [doc-vocab* (vector-ref *posidx* d-rel)])
-                   (sum
-                    (map
-                     (lambda (vocab)
-                       (* (tf-idf d vocab) (tf-idf d-rel vocab)))
-                     doc-vocab*))))
-                (iota *num-relevent*)))
-             `(,d . ,(/ (+ (* *a* wd) (* *b* (/ 1.0 *num-relevent*) (sum docdot*)))
-                        (vector-ref *veclen* d))))
-        docs docs-tfidfidf))
+       (append
+        (map (lambda (d-dist)
+               (let* ([d (car d-dist)]
+                      [wd (cdr (assq d docs-assoc-tfidfidf))]
+                      [docdot*
+                        (map
+                          (lambda (i)
+                            (let* ([d-rel (car (list-ref docs-dist i))]
+                                   [doc-vocab* (vector-ref *posidx* d-rel)])
+                              ($ sum $ vector->list $ vector-map ; temporary hack
+                                 (lambda (_ vocab)
+                                   (* (tf-idf d vocab) (tf-idf d-rel vocab)))
+                                 doc-vocab*)))
+                          (iota *num-relevent*))])
+                 (format #t ".") (flush)
+                 `(,d . ,(/ (+ (* *a* wd) (* *b* (/ 1.0 *num-relevent*) (sum docdot*)))
+                            (vector-ref *veclen* d)))))
+             (take docs-dist *num-rerank*))
+        (drop docs-dist *num-rerank*)))
       (set! docs-dist
             (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2))))))
     docs-dist))
@@ -246,13 +252,13 @@
       (do ([queries (read-xml *query-file* *query-xml-path*) (cdr queries)]
            [i 0 (+ i 1)])
           ([null? queries] 0)
-        ;([= i 1] 0)
+          ;([= i 1] 0)
         (format #t "Retrieving ~a...\n" i)
         (let* ([query (car queries)]
                [query-num (sxml:string-value ((car-sxpath '(number)) (car queries)))]
                [query-num-len (string-length query-num)]
                [query-num-digit (substring query-num (- query-num-len 3) query-num-len)]
-               [doc-dist (retrieve query 15)])
+               [doc-dist (retrieve query 100)])
           (for-each
            (lambda (d)
              (let* ([docfile (vector-ref *doclist* (car d))]
