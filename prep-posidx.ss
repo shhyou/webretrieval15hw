@@ -51,8 +51,9 @@
                [outfile  "o|outfile=s"]
                [modeldir "m|modeldir=s"]
                [NTCIRdir "d|NTCIRdir=s"])
-      (set! *enable-rocchio* rocchio)
       (set! *query-file* infile)
       (set! *output-file* outfile)
       (set! *doclist-file* NTCIRdir)
+      (init-model modeldir)
+      (format #t "Preprocessing document index...\n")
       (main1 args))))

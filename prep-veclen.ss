@@ -10,8 +10,6 @@
 (define (veclen-create)
   (define veclen
     (make-vector *file-count* 0))
-  (define vecdot
-    (make-vector *file-count* 0))
   (define querylen 0)
   (define invidx
     (call-with-input-file *invidx-ss-file* read))
@@ -35,21 +33,18 @@
                   [tf-idf (* tf idf)])
              (vector-set! veclen fileid
                           (+ (* tf-idf tf-idf) (vector-ref veclen fileid)))
-             (vector-set! vecdot fileid
-                          (+ (* 0.5 tf idf idf) (vector-ref vecdot fileid)))
              (set! querylen (+ (* 0.5 0.5 idf idf) querylen))))
          fileid*))
       w1-invidx*))
    invidx)
   (vector-map! sqrt veclen)
-  `(,veclen ,vecdot ,querylen))
+  `(,veclen ,querylen))
 
 (define (main1 args)
   (call-with-output-file *veclen-file*
     (lambda (port)
-      (match-let ([(veclen vecdot querylen) (veclen-create)])
+      (match-let ([(veclen querylen) (veclen-create)])
         (write veclen port)
-        (write vecdot port)
         (write querylen port))))
   0)
 
@@ -61,8 +56,9 @@
                [outfile  "o|outfile=s"]
                [modeldir "m|modeldir=s"]
                [NTCIRdir "d|NTCIRdir=s"])
-      (set! *enable-rocchio* rocchio)
       (set! *query-file* infile)
       (set! *output-file* outfile)
       (set! *doclist-file* NTCIRdir)
+      (init-model modeldir)
+      (format #t "Preprocessing document vector...\n")
       (main1 args))))

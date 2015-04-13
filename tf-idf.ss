@@ -40,7 +40,6 @@
 (define *vocab-all-inv* #f)  ; hash table from string to int
 (define *doclist* #f)
 (define *veclen* #f)
-(define *vecdot* #f)
 (define *querylen* #f)
 
 (define (read-xml file-name xml-path)
@@ -251,8 +250,8 @@
     (lambda (port)
       (do ([queries (read-xml *query-file* *query-xml-path*) (cdr queries)]
            [i 0 (+ i 1)])
-          ;([null? queries] 0)
-          ([= i 1] 0)
+          ([null? queries] 0)
+          ;([= i 1] 0)
         (format #t "Retrieving ~a...\n" i)
         (let* ([query (car queries)]
                [query-num (sxml:string-value ((car-sxpath '(number)) (car queries)))]
@@ -299,9 +298,8 @@
   (call-with-input-file *veclen-file*
     (lambda (port)
       (let* ([veclen (read port)]
-             [vecdot (read port)]
              [querylen (read port)])
-        `(,veclen ,vecdot ,querylen)))))
+        `(,veclen ,querylen)))))
 
 (define init-values
   (lambda ()
@@ -321,9 +319,8 @@
       (set! *doclist* (doclist-read)))
     (when *read-veclen*
       (format #t "~a (veclen-read)\n" (clock))
-      (match-let ([(veclen vecdot querylen) (veclen-read)])
+      (match-let ([(veclen querylen) (veclen-read)])
         (set! *veclen* veclen)
-        (set! *vecdot* vecdot)
         (set! *querylen* querylen)))
     (format #t "~a init-values done\n" (clock))))
 
