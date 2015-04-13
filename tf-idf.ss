@@ -27,6 +27,10 @@
 (define *read-veclen* #t)
 
 (define *enable-rocchio* #t)
+(define *num-relevent* 5)
+(define *a* 1)
+(define *b* 0.8)
+; irrevelent documents (c) are omitted
 
 (define *invidx* #f)
 (define *posidx* #f)
@@ -120,6 +124,26 @@
              [w2-fileid* (vector-ref w1-invidx* idx)])
         (cdr w2-fileid*))])))
 
+(define (tf-idf docid vocab)
+  (define fileid* (inverted-index-ref vocab))
+  (define (tf)
+    (let
+        ([term-occurence
+          (vector-any
+           (lambda (fileid)
+             (cond [(and (pair? fileid) (= docid (car fileid))) (cdr fileid)]
+                   [(and (number? fileid) (= docid fileid)) 1]
+                   [else #f]))
+           fileid*)])
+      ; try max freq normalization for now
+      ;(if term-occurence (+ 1 (log term-occurence)) 0)))
+      (if term-occurence term-occurence 0)))
+  (define (idf)
+    (define doc-occurence
+      (vector-length fileid*))
+    (log (/ *file-count* doc-occurence)))
+  (* (tf) (idf)))
+
 (define (tf-idf-idf docid vocab)
   (define fileid* (inverted-index-ref vocab))
   (define (tf)
@@ -158,7 +182,6 @@
   '((11602 . 7709) (7709 . 10635) (10635 . 10588) (10588 . 8640) (8640 . 9632) (9632 . 10877) (10877 . 11043) (11043 . 9634) (9634 . 8780)))
 
 (define (retrieve query maximum)
-  (define (sum xs) (fold + 0.0 xs))
   (define (get-wq-len vocab*)
     (define (idf vocab)
       (log (/ *file-count*
@@ -195,7 +218,24 @@
     (set! docs-dist
           (take* (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2)))) maximum))
     (when *enable-rocchio*
-      (let* () #f)
+      (format #t "Re-ranking document by Rocchio...\n")
+      (set!
+       docs-dist
+       (map (lambda (d wd)
+             (define docdot*
+               (map
+                (lambda (i)
+                 (let* ([d-rel (car (list-ref docs-dist i))]
+                        [doc-vocab* (vector-ref *posidx* d-rel)])
+                   (sum
+                    (map
+                     (lambda (vocab)
+                       (* (tf-idf d vocab) (tf-idf d-rel vocab)))
+                     doc-vocab*))))
+                (iota *num-relevent*)))
+             `(,d . ,(/ (+ (* *a* wd) (* *b* (/ 1.0 *num-relevent*) (sum docdot*)))
+                        (vector-ref *veclen* d))))
+        docs docs-tfidfidf))
       (set! docs-dist
             (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2))))))
     docs-dist))

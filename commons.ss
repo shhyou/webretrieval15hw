@@ -28,8 +28,10 @@
 
 (define-module common
   (export
+   sum
    clock
    read-int)
+  (define (sum xs) (fold + 0.0 xs))
   (define (clock)
     (use scheme.time :only (current-jiffy jiffies-per-second))
     (exact->inexact (/ (current-jiffy) (jiffies-per-second))))
