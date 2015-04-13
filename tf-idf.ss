@@ -175,7 +175,6 @@
                   (format #t "\r~a%               "
                    (/ (round (/ (* 10000.0 d) *file-count*)) 100.0))
                   (flush))
-                 (when (< (mod d 1000) 5) (format #t "~a " d)) (flush)
                  (sum (map (lambda (vocab) (tf-idf-idf d vocab)) vocab*)))
                docs))]
        [docs-dist
