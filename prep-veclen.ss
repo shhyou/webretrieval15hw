@@ -1,3 +1,5 @@
+(use gauche.parseopt)
+
 (use util.match :only (match-let))
 
 (require "./commons.ss")
@@ -42,7 +44,7 @@
   (vector-map! sqrt veclen)
   `(,veclen ,vecdot ,querylen))
 
-(define (main args)
+(define (main1 args)
   (call-with-output-file *veclen-file*
     (lambda (port)
       (match-let ([(veclen vecdot querylen) (veclen-create)])
@@ -50,3 +52,17 @@
         (write vecdot port)
         (write querylen port))))
   0)
+
+(define main
+  (lambda (args)
+    (let-args (cdr args)
+              ([rocchio  "r|rocchio"]
+               [infile   "i|infile=s"]
+               [outfile  "o|outfile=s"]
+               [modeldir "m|modeldir=s"]
+               [NTCIRdir "d|NTCIRdir=s"])
+      (set! *enable-rocchio* rocchio)
+      (set! *query-file* infile)
+      (set! *output-file* outfile)
+      (set! *doclist-file* NTCIRdir)
+      (main1 args))))

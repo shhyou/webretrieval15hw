@@ -1,3 +1,5 @@
+(use gauche.parseopt)
+
 (require "./commons.ss")
 
 (import parameter)
@@ -36,7 +38,21 @@
                      (vector-ref invidx w1)))
               (loop (read-int port))))))))
 
-(define (main args)
+(define (main1 args)
   (call-with-output-file *invidx-ss-file*
     (lambda (port)
       (write (inverted-index-create) port))))
+
+(define main
+  (lambda (args)
+    (let-args (cdr args)
+              ([rocchio  "r|rocchio"]
+               [infile   "i|infile=s"]
+               [outfile  "o|outfile=s"]
+               [modeldir "m|modeldir=s"]
+               [NTCIRdir "d|NTCIRdir=s"])
+      (set! *enable-rocchio* rocchio)
+      (set! *query-file* infile)
+      (set! *output-file* outfile)
+      (set! *doclist-file* NTCIRdir)
+      (main1 args))))
