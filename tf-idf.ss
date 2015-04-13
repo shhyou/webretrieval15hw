@@ -5,6 +5,8 @@
 ;   - inverted index
 ;   - queries
 
+(use gauche.parseopt)
+
 (use util.match  :only (match-let))
 (use sxml.ssax   :only (ssax:xml->sxml))
 (use sxml.sxpath :only (sxpath car-sxpath node-pos sxml:string-value))
@@ -335,5 +337,16 @@
 
 (define main
   (lambda (args)
-    (init-values)
-    (test)))
+    (let-args (cdr args)
+              ([rocchio  "r|rocchio"]
+               [infile   "i|infile=s"]
+               [outfile  "o|outfile=s"]
+               [modeldir "m|modeldir=s"]
+               [NTCIRdir "d|NTCIRdir=s"])
+      (set! *enable-rocchio* rocchio)
+      (set! *query-file* infile)
+      (set! *output-file* outfile)
+      (set! *doclist-file* NTCIRdir)
+      (init-model modeldir)
+      (init-values)
+      (test))))

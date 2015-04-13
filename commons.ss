@@ -11,20 +11,30 @@
    *doclist-file*
    *docmaxfreq-file*
    *veclen-file*
-   *posidx-file*)
+   *posidx-file*
+   init-model)
   (define *vocab-count* 29908)
   (define *file-count* 46972)
+
   (define *output-file* "./ans-train-my")
   (define *model-prefix* "./model")
   (define *NTCIR-prefix* "./model/CIRB010")
-  (define *query-file* (string-append *model-prefix* "/query/query-train.xml"))
-  (define *invidx-file* (string-append *model-prefix* "/inverted-file"))
-  (define *invidx-ss-file* (string-append *model-prefix* "/invidx.ss"))
-  (define *vocab-file* (string-append *model-prefix* "/vocab.all"))
-  (define *doclist-file* (string-append *model-prefix* "/file-list"))
-  (define *docmaxfreq-file* (string-append *model-prefix* "/docmaxfreq.ss"))
-  (define *veclen-file* (string-append *model-prefix* "/veclen.ss"))
-  (define *posidx-file* (string-append *model-prefix* "/posidx.ss")))
+  (define *query-file* "./model/query/query-train.xml")
+
+  (define *invidx-file* #f)
+  (define *vocab-file* #f)
+  (define *doclist-file* #f)
+
+  (define *invidx-ss-file* "/invidx.ss")
+  (define *docmaxfreq-file* "/docmaxfreq.ss")
+  (define *veclen-file* "/veclen.ss")
+  (define *posidx-file* "/posidx.ss")
+
+  (define (init-model prefix)
+    (set! *model-prefix* prefix)
+    (set! *invidx-file* (string-append *model-prefix* "/inverted-file"))
+    (set! *vocab-file* (string-append *model-prefix* "/vocab.all"))
+    (set! *doclist-file* (string-append *model-prefix* "/file-list"))))
 
 (define-module common
   (export
