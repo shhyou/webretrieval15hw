@@ -4,9 +4,9 @@
 # Remember to preserve " $@" at the end, which will be the program options we give you.
 
 # Do preprocessing (run it once is enough)
-./gosh prep-invidx.ss $@
-./gosh prep-veclen.ss $@
-./gosh prep-postidx.ss $@
+./gauche/bin/gosh prep-invidx.ss $@
+./gauche/bin/gosh prep-veclen.ss $@
+./gauche/bin/gosh prep-postidx.ss $@
 
 # Do retrieval
-./gosh tf-idf.ss $@
+./gauche/bin/gosh tf-idf.ss $@
