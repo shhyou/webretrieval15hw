@@ -20,7 +20,7 @@
 (import (common :only (clock)))
 
 (define *read-invidx* #t)
-(define *read-posidx* #t)
+(define *read-posidx* #f)
 (define *read-vocab* #t)
 (define *read-doclist* #t)
 (define *read-docmaxfreq* #t)
@@ -212,7 +212,7 @@
                [query-num (sxml:string-value ((car-sxpath '(number)) (car queries)))]
                [query-num-len (string-length query-num)]
                [query-num-digit (substring query-num (- query-num-len 3) query-num-len)]
-               [doc-dist (retrieve query 100)])
+               [doc-dist (retrieve query 15)])
           (for-each
            (lambda (d)
              (let* ([docfile (vector-ref *doclist* (car d))]
@@ -222,8 +222,7 @@
                         (read-xml (string-append *NTCIR-prefix* docfile-real)
                                   *doc-xml-path*))])
                (format port "~a ~a\n" query-num-digit docfile-id)))
-           (take-while (^d (>= (cdr d) 1e-4))
-                        doc-dist)))))))
+           doc-dist))))))
 
 (define (invidx-read)
   (call-with-input-file *invidx-ss-file* read))
