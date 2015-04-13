@@ -153,7 +153,7 @@
 (define *sample-vocab*
   '((11602 . 7709) (7709 . 10635) (10635 . 10588) (10588 . 8640) (8640 . 9632) (9632 . 10877) (10877 . 11043) (11043 . 9634) (9634 . 8780)))
 
-(define (retrieve query)
+(define (retrieve query maximum)
   (define (sum xs) (fold + 0.0 xs))
   (define (get-wq-len vocab*)
     (define (idf vocab)
@@ -180,8 +180,7 @@
                  (sum (map (lambda (vocab) (tf-idf-idf d vocab)) vocab*)))
                docs))]
        [docs-dist
-        (map (lambda (d wd) `(,d . ,(/ wd
-                                       (vector-ref *veclen* d) q)))
+        (map (lambda (d wd) `(,d . ,(/ wd (vector-ref *veclen* d))))
              docs docs-tfidfidf)])
     ;(format #t "q = ~a\ndocs-tfidfidf = ~a\nvecdot = ~a\nveclen = ~a\ndocs-dist = ~a\n"
     ;   q docs-tfidfidf
@@ -189,7 +188,7 @@
     ;   (map (^x (vector-ref *veclen* x)) docs)
     ;   docs-dist)
     ;(format #t "~a\n" (map (^x (vector-ref *doclist* x)) docs))
-    (set! docs-dist (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2)))))
+    (set! docs-dist (take* (sort! docs-dist (^[d1 d2] (> (cdr d1) (cdr d2)))) maximum))
     docs-dist))
 
 (define (test)
@@ -204,7 +203,7 @@
                [query-num (sxml:string-value ((car-sxpath '(number)) (car queries)))]
                [query-num-len (string-length query-num)]
                [query-num-digit (substring query-num (- query-num-len 3) query-num-len)]
-               [doc-dist (retrieve query)])
+               [doc-dist (retrieve query 100)])
           (for-each
            (lambda (d)
              (let* ([docfile (vector-ref *doclist* (car d))]
@@ -214,10 +213,8 @@
                         (read-xml (string-append *NTCIR-prefix* docfile-real)
                                   *doc-xml-path*))])
                (format port "~a ~a\n" query-num-digit docfile-id)))
-           (take*
-            (take-while (^d (>= (cdr d) 1e-4))
-                        doc-dist)
-            100)))))))
+           (take-while (^d (>= (cdr d) 1e-4))
+                        doc-dist)))))))
 
 (define (inverted-index-read)
   (call-with-input-file *invidx-ss-file* read))
