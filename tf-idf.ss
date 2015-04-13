@@ -335,7 +335,7 @@
       (set! *enable-rocchio* rocchio)
       (set! *query-file* infile)
       (set! *output-file* outfile)
-      (set! *doclist-file* NTCIRdir)
+      (set! *NTCIR-prefix* NTCIRdir)
       (init-model modeldir)
       (init-values)
       (test))))
