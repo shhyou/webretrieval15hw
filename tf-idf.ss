@@ -35,78 +35,78 @@
 (define *querylen* #f)
 
 (define (read-xml file-name xml-path)
-(call-with-input-file file-name
-  (lambda (port)
-    ((sxpath xml-path) (ssax:xml->sxml port '())))))
+  (call-with-input-file file-name
+    (lambda (port)
+      ((sxpath xml-path) (ssax:xml->sxml port '())))))
 
 (define *query-xml-path* '(xml topic))
 (define *doc-xml-path* '(// doc))
 
 ; for debug
 (define (vocab-list->string vocab*)
-($ apply string-append $ map
-   (lambda (vocab)
-     (define w1 (car vocab))
-     (define w2 (cdr vocab))
-     (format "(~a~a)"
-             (vector-ref *vocab-all* w1)
-             (if (= -1 w2) "" (vector-ref *vocab-all* w2))))
-   vocab*))
+  ($ apply string-append $ map
+     (lambda (vocab)
+       (define w1 (car vocab))
+       (define w2 (cdr vocab))
+       (format "(~a~a)"
+               (vector-ref *vocab-all* w1)
+               (if (= -1 w2) "" (vector-ref *vocab-all* w2))))
+     vocab*))
 
 ; current only use title
 (define (query->vocab-list query item)
-(define (string->vocab-list str)
-  (define avail (make-vector (+ 1 (string-length str)) #f))
-  (vector-set! avail 0 #t)
-  (let loop ([pos 0] [lst '()])
-    (cond
-     [(= pos (string-length str)) (reverse lst)]
-     [(vector-ref avail pos)
-      (loop (+ pos 1)
-            (vector-fold-right
-             (lambda (vocab1 lst^ w1)
-               (define w1-len (string-length w1))
-               (define (check-w2*)
-                 (vector-fold
-                  (lambda (_ lst^^ vocab2-with-invidx)
-                    (if (pair? vocab2-with-invidx)
-                        (let* ([vocab2 (car vocab2-with-invidx)]
-                               [w2 (vector-ref *vocab-all* vocab2)]
-                               [w2-len (string-length w2)])
-                          (cond [(string-prefix? w2 str 0 w2-len (+ pos w1-len))
-                                 (vector-set! avail (+ pos w1-len w2-len) #t)
-                                 (cons `(,vocab1 . ,vocab2) lst^^)]
-                                [else lst^^]))
-                        (begin
-                          (vector-set! avail (+ pos w1-len) #t)
-                          (let* ([ch (string-ref (vector-ref *vocab-all* vocab1) 0)]
-                                 [category (char-general-category ch)])
-                            (if (memq category '(Ll Lu Nd Lt Nl No))
-                                (cons `(,vocab1 . -1) lst^^)
-                                lst^^)))))
-                  lst^
-                  (vector-ref *invidx* vocab1)))
-               (cond [(string-prefix? w1 str 0 w1-len pos) (check-w2*)]
-                     [else lst^]))
-             lst *vocab-all*))]
-     [else (loop (+ pos 1) lst)])))
-(string->vocab-list
- (string-delete #[一不之也了了人他你個們在就我是有的而要說這都，。；「」、]
-  (string-trim-both
-   (sxml:string-value ((car-sxpath `(,item)) query))))))
+  (define (string->vocab-list str)
+    (define avail (make-vector (+ 1 (string-length str)) #f))
+    (vector-set! avail 0 #t)
+    (let loop ([pos 0] [lst '()])
+      (cond
+       [(= pos (string-length str)) (reverse lst)]
+       [(vector-ref avail pos)
+        (loop (+ pos 1)
+              (vector-fold-right
+               (lambda (vocab1 lst^ w1)
+                 (define w1-len (string-length w1))
+                 (define (check-w2*)
+                   (vector-fold
+                    (lambda (_ lst^^ vocab2-with-invidx)
+                      (if (pair? vocab2-with-invidx)
+                          (let* ([vocab2 (car vocab2-with-invidx)]
+                                 [w2 (vector-ref *vocab-all* vocab2)]
+                                 [w2-len (string-length w2)])
+                            (cond [(string-prefix? w2 str 0 w2-len (+ pos w1-len))
+                                   (vector-set! avail (+ pos w1-len w2-len) #t)
+                                   (cons `(,vocab1 . ,vocab2) lst^^)]
+                                  [else lst^^]))
+                          (begin
+                            (vector-set! avail (+ pos w1-len) #t)
+                            (let* ([ch (string-ref (vector-ref *vocab-all* vocab1) 0)]
+                                   [category (char-general-category ch)])
+                              (if (memq category '(Ll Lu Nd Lt Nl No))
+                                  (cons `(,vocab1 . -1) lst^^)
+                                  lst^^)))))
+                    lst^
+                    (vector-ref *invidx* vocab1)))
+                 (cond [(string-prefix? w1 str 0 w1-len pos) (check-w2*)]
+                       [else lst^]))
+               lst *vocab-all*))]
+       [else (loop (+ pos 1) lst)])))
+  (string->vocab-list
+   (string-delete #[一不之也了了人他你個們在就我是有的而要說這都，。；「」、]
+                  (string-trim-both
+                   (sxml:string-value ((car-sxpath `(,item)) query))))))
 
 (define (inverted-index-ref vocab)
-(define (match-vocab2 w1-invidx*)
-  (and (pair? w1-invidx*) (= (cdr vocab) (car w1-invidx*))))
-(let ([w1-invidx* (vector-ref *invidx* (car vocab))])
-  (cond
-   [(vector-empty? w1-invidx*) #f]
-   [(= -1 (cdr vocab))
-    (if (vector? (vector-ref w1-invidx* 0))
-        (vector-ref w1-invidx* 0)
-        #f)]
-   [else
-    (let* ([cmp (^[a b] (cond [(< (car a) (car b)) -1]
+  (define (match-vocab2 w1-invidx*)
+    (and (pair? w1-invidx*) (= (cdr vocab) (car w1-invidx*))))
+  (let ([w1-invidx* (vector-ref *invidx* (car vocab))])
+    (cond
+     [(vector-empty? w1-invidx*) #f]
+     [(= -1 (cdr vocab))
+      (if (vector? (vector-ref w1-invidx* 0))
+          (vector-ref w1-invidx* 0)
+          #f)]
+     [else
+      (let* ([cmp (^[a b] (cond [(< (car a) (car b)) -1]
                                 [(> (car a) (car b)) 1]
                                 [else 0]))]
              [start-idx (if (vector? (vector-ref w1-invidx* 0)) 1 0)]
@@ -172,9 +172,9 @@
           (format #t "Total ~a document(s).\n" (length docs))
           (map (lambda (d)
                  (when (< (mod d 100) 5)
-                  (format #t "\r~a%               "
-                   (/ (round (/ (* 10000.0 d) *file-count*)) 100.0))
-                  (flush))
+                   (format #t "\r~a%               "
+                           (/ (round (/ (* 10000.0 d) *file-count*)) 100.0))
+                   (flush))
                  (sum (map (lambda (vocab) (tf-idf-idf d vocab)) vocab*)))
                docs))]
        [docs-dist
@@ -191,31 +191,31 @@
     docs-dist))
 
 (define (test)
- (call-with-output-file *output-file*
-  (lambda (port)
-    (do ([queries (read-xml *query-file* *query-xml-path*) (cdr queries)]
-         [i 0 (+ i 1)])
-        ([null? queries] 0)
+  (call-with-output-file *output-file*
+    (lambda (port)
+      (do ([queries (read-xml *query-file* *query-xml-path*) (cdr queries)]
+           [i 0 (+ i 1)])
+          ([null? queries] 0)
         ;([= i 1] 0)
-      (format #t "Retrieving ~a...\n" i)
-      (let* ([query (car queries)]
-             [query-num (sxml:string-value ((car-sxpath '(number)) (car queries)))]
-             [query-num-len (string-length query-num)]
-             [query-num-digit (substring query-num (- query-num-len 3) query-num-len)]
-             [doc-dist (retrieve query)])
-        (for-each
-         (lambda (d)
-           (let* ([docfile (vector-ref *doclist* (car d))]
-                  [docfile-real (substring docfile 7 (string-length docfile))]
-                  [docfile-id
-                   ($ sxml:string-value $ (car-sxpath '(id))
-                    (read-xml (string-append *NTCIR-prefix* docfile-real)
-                              *doc-xml-path*))])
-             (format port "~a ~a\n" query-num-digit docfile-id)))
-         (take*
-          (take-while (^d (>= (cdr d) 1e-4))
-                      doc-dist)
-          100)))))))
+        (format #t "Retrieving ~a...\n" i)
+        (let* ([query (car queries)]
+               [query-num (sxml:string-value ((car-sxpath '(number)) (car queries)))]
+               [query-num-len (string-length query-num)]
+               [query-num-digit (substring query-num (- query-num-len 3) query-num-len)]
+               [doc-dist (retrieve query)])
+          (for-each
+           (lambda (d)
+             (let* ([docfile (vector-ref *doclist* (car d))]
+                    [docfile-real (substring docfile 7 (string-length docfile))]
+                    [docfile-id
+                     ($ sxml:string-value $ (car-sxpath '(id))
+                        (read-xml (string-append *NTCIR-prefix* docfile-real)
+                                  *doc-xml-path*))])
+               (format port "~a ~a\n" query-num-digit docfile-id)))
+           (take*
+            (take-while (^d (>= (cdr d) 1e-4))
+                        doc-dist)
+            100)))))))
 
 (define (inverted-index-read)
   (call-with-input-file *invidx-ss-file* read))
@@ -223,10 +223,11 @@
 (define (vocab-read)
   (define vocab-hash
     (make-hash-table 'string=?))
-  (let ([vocab-all (call-with-input-file *vocab-file*
-                     (lambda (port)
-                       (list->vector
-                        (port->string-list port))))])
+  (let ([vocab-all
+         (call-with-input-file *vocab-file*
+           (lambda (port)
+             (list->vector
+              (port->string-list port))))])
     (vector-for-each-with-index
      (lambda (idx vocab)
        (hash-table-put! vocab-hash vocab idx))
@@ -243,11 +244,11 @@
 
 (define (veclen-read)
   (call-with-input-file *veclen-file*
-   (lambda (port)
-     (let* ([veclen (read port)]
-            [vecdot (read port)]
-            [querylen (read port)])
-      `(,veclen ,vecdot ,querylen)))))
+    (lambda (port)
+      (let* ([veclen (read port)]
+             [vecdot (read port)]
+             [querylen (read port)])
+        `(,veclen ,vecdot ,querylen)))))
 
 (define init-values
   (lambda ()
