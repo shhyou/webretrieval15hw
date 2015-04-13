@@ -6,7 +6,7 @@
 # Do preprocessing (run it once is enough)
 /usr/bin/time -p ./gauche/bin/gosh prep-inv.ss $@
 /usr/bin/time -p ./gauche/bin/gosh prep-veclen.ss $@
-/usr/bin/time -p ./gauche/bin/gosh prep-postidx.ss $@
+/usr/bin/time -p ./gauche/bin/gosh prep-posidx.ss $@
 
 # Do retrieval
 ./gauche/bin/gosh tf-idf.ss $@

@@ -41,7 +41,8 @@
 (define (main1 args)
   (call-with-output-file *invidx-ss-file*
     (lambda (port)
-      (write (inverted-index-create) port))))
+      (write (inverted-index-create) port)))
+  0)
 
 (define main
   (lambda (args)
