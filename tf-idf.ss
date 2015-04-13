@@ -25,7 +25,6 @@
 (define *read-posidx* #t)
 (define *read-vocab* #t)
 (define *read-doclist* #t)
-(define *read-docmaxfreq* #t)
 (define *read-veclen* #t)
 
 (define *enable-rocchio* #t)
@@ -40,7 +39,6 @@
 (define *vocab-all* #f)      ; vector of string
 (define *vocab-all-inv* #f)  ; hash table from string to int
 (define *doclist* #f)
-(define *docmaxfreq* #f)
 (define *veclen* #f)
 (define *vecdot* #f)
 (define *querylen* #f)
@@ -253,8 +251,8 @@
     (lambda (port)
       (do ([queries (read-xml *query-file* *query-xml-path*) (cdr queries)]
            [i 0 (+ i 1)])
-          ([null? queries] 0)
-          ;([= i 1] 0)
+          ;([null? queries] 0)
+          ([= i 1] 0)
         (format #t "Retrieving ~a...\n" i)
         (let* ([query (car queries)]
                [query-num (sxml:string-value ((car-sxpath '(number)) (car queries)))]
@@ -297,9 +295,6 @@
     (lambda (port)
       (list->vector (port->string-list port)))))
 
-(define (docmaxfreq-read)
-  (call-with-input-file *docmaxfreq-file* read))
-
 (define (veclen-read)
   (call-with-input-file *veclen-file*
     (lambda (port)
@@ -324,9 +319,6 @@
     (when *read-doclist*
       (format #t "~a (doclist-read)\n" (clock))
       (set! *doclist* (doclist-read)))
-    (when *read-docmaxfreq*
-      (format #t "~a (docmaxfreq-read)\n" (clock))
-      (set! *docmaxfreq* (docmaxfreq-read)))
     (when *read-veclen*
       (format #t "~a (veclen-read)\n" (clock))
       (match-let ([(veclen vecdot querylen) (veclen-read)])

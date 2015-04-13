@@ -9,7 +9,6 @@
    *invidx-ss-file*
    *vocab-file*
    *doclist-file*
-   *docmaxfreq-file*
    *veclen-file*
    *posidx-file*
    init-model)
@@ -25,10 +24,9 @@
   (define *vocab-file* #f)
   (define *doclist-file* #f)
 
-  (define *invidx-ss-file* "/invidx.ss")
-  (define *docmaxfreq-file* "/docmaxfreq.ss")
-  (define *veclen-file* "/veclen.ss")
-  (define *posidx-file* "/posidx.ss")
+  (define *invidx-ss-file* "./invidx.ss")
+  (define *veclen-file* "./veclen.ss")
+  (define *posidx-file* "./posidx.ss")
 
   (define (init-model prefix)
     (set! *model-prefix* prefix)
