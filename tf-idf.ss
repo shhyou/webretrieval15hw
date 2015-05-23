@@ -232,8 +232,7 @@
                             (let* ([d-rel (car (list-ref docs-dist i))]
                                    [doc-vocab* (vector-ref *posidx* d-rel)])
                               ($ sum $ vector->list $ vector-map ; temporary hack
-                                 (lambda (_ vocab)
-                                   (* (tf-idf d vocab) (tf-idf d-rel vocab)))
+                                 (lambda (_ vocab) (tf-idf d-rel vocab))
                                  doc-vocab*)))
                           (iota *num-relevent*))])
                  (format #t ".") (flush)
@@ -339,3 +338,16 @@
       (init-model modeldir)
       (init-values)
       (test))))
+
+'( ; calculate word count
+  ($ sum $ vector->list $ vector-map
+   (lambda (w1 w2-invidx*)
+    ($ sum $ vector->list $ vector-map
+     (lambda (_ w2-fileid*)
+      ($ sum $ vector->list $ vector-map
+       (lambda (_ fileid*)
+        (if (pair? fileid*) 1 0))
+       (if (vector? w2-fileid*) w2-fileid* (cdr w2-fileid*))))
+     w2-invidx*))
+   *invidx*)
+  )
