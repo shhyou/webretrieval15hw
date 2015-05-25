@@ -44,7 +44,7 @@ nextRank page rank = I.listArray (1, numNodes page)
   [ baseValue + damping * sum [ rank!v / outDegreeD page!v
                               | v <- I.elems (inEdges page!u) ]
   | u <- I.indices rank ]
-  where baseValue = 1 - damping + 1 / numNodesD page * (sum . map (rank!) . sinkNodes $ page)
+  where baseValue = 1 - damping + damping / numNodesD page * (sum . map (rank!) . sinkNodes $ page)
 
 l2norm2 :: (Vector, Vector) -> Double
 l2norm2 (v1, v2) = sum [((v1!i) - (v2!i))*((v1!i) - (v2!i)) | i <- I.indices v1 ]
