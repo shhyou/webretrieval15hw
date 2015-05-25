@@ -91,4 +91,7 @@ main = do
                                   , outDegreeD = outDegrees
                                   , sinkNodes = undefined
                                   , inEdges = ginv }
-  print rank
+  forM_ [1..snd (I.bounds rank)] $ \i -> do
+    putStr (show i)
+    putChar ':'
+    print (rank!i)
