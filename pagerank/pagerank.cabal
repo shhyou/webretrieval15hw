@@ -25,5 +25,5 @@ executable pagerank
                        attoparsec >=0.13 && <0.14,
                        mtl >=2.2 && <2.3
   -- hs-source-dirs:      
-  ghc-options:         -O2 -with-rtsopts=-K32M
+  ghc-options:         -O2 -with-rtsopts=-K128M
   default-language:    Haskell2010

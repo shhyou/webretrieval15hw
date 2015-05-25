@@ -34,14 +34,14 @@ damping = 0.85
 
 data PageRank = PageRank { numNodes :: Int
                          , numNodesD :: Double
-                         , outDegreeD :: UArray Int Double
+                         , invOutDegree :: UArray Int Double
                          , sinkNodes :: [Int]
                          , inEdges :: Graph }
 
 -- pⱼ = (1 - d) + d Σᵢ 1 / Oᵢ pᵢ
 nextRank :: PageRank -> Vector -> Vector
 nextRank page rank = I.listArray (1, numNodes page)
-  [ baseValue + damping * sum [ rank!v / outDegreeD page!v
+  [ baseValue + damping * sum [ rank!v * invOutDegree page!v
                               | v <- I.elems (inEdges page!u) ]
   | u <- I.indices rank ]
   where baseValue = 1 - damping + damping / numNodesD page * (sum . map (rank!) . sinkNodes $ page)
@@ -70,7 +70,7 @@ main = do
     failed@(Fail _ _ _) -> print failed >> exitFailure
     Done _ ng -> return ng
   putStrLn "Degrees..."
-  let !outDegrees = I.listArray (1, n) . map (fromIntegral . rangeSize . I.bounds) $ I.elems g
+  let !invOutDegs = I.listArray (1, n) . map ((1.0 / ) . fromIntegral . rangeSize . I.bounds) $ I.elems g
   inDegrees <- M.newArray (1, n) 0 :: IO (IOUArray Int Int)
   sequence_ . map (\i -> M.writeArray inDegrees i . (+1) =<< M.readArray inDegrees i) . concatMap I.elems . I.elems $ g
   putStrLn "Sink nodes..."
@@ -93,7 +93,7 @@ main = do
   putStrLn "Calculating page rank..."
   let !rank = pageRank $ PageRank { numNodes = n
                                   , numNodesD = fromIntegral n
-                                  , outDegreeD = outDegrees
+                                  , invOutDegree = invOutDegs
                                   , sinkNodes = sinks
                                   , inEdges = ginv }
   forM_ [1..snd (I.bounds rank)] $ \i -> do
