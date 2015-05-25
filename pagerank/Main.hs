@@ -23,8 +23,6 @@ import Data.ByteString.Char8 (pack)
 import Data.Attoparsec.ByteString.Char8 (char, decimal, string, skipSpace, many', count, (<?>))
 import Data.Attoparsec.ByteString.Lazy (Parser(), Result(..), parse)
 
-import Debug.Trace
-
 type Vector = UArray Int Double
 type Graph  = Array Int (UArray Int Int)
 
@@ -96,7 +94,7 @@ main = do
                                   , invOutDegree = invOutDegs
                                   , sinkNodes = sinks
                                   , inEdges = ginv }
-  forM_ [1..snd (I.bounds rank)] $ \i -> do
+  forM_ (range (I.bounds rank)) $ \i -> do
     putStr (show i)
     putChar ':'
     print (rank!i)
