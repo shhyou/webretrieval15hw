@@ -23,6 +23,8 @@ import Data.ByteString.Char8 (pack)
 import Data.Attoparsec.ByteString.Char8 (char, decimal, string, skipSpace, many', count, (<?>))
 import Data.Attoparsec.ByteString.Lazy (Parser(), Result(..), parse)
 
+import Debug.Trace
+
 type Vector = UArray Int Double
 type Graph  = Array Int (UArray Int Int)
 
@@ -75,7 +77,7 @@ main = do
   let !sinks = map fst . filter ((== 0) . rangeSize . I.bounds . snd) . I.assocs $ g
   putStrLn ("Total " ++ show (length sinks) ++ " sink node(s).")
   putStrLn "Reversing graph..."
-  ginv' <- M.newListArray (0,n-1) =<< mapM (\d -> M.newArray (0,d-1) 0) =<< M.getElems inDegrees
+  ginv' <- M.newListArray (0,n) =<< mapM (\d -> M.newArray (0,d-1) 0) =<< M.getElems inDegrees
              :: IO (IOArray Int (IOUArray Int Int))
   let rev_loop 0 = return ()
       rev_loop u = do
@@ -86,11 +88,13 @@ main = do
           M.writeArray inNodes (deg-1) u
         rev_loop (u-1)
   rev_loop (n-1)
+  putStrLn "Freezing array..."
   ginv <- I.listArray (0,n) <$> (mapM M.freeze =<< M.getElems ginv')
+  putStrLn "Calculating page rank..."
   let !rank = pageRank $ PageRank { numNodes = n+1
                                   , numNodesD = fromIntegral (n+1)
                                   , outDegreeD = outDegrees
-                                  , sinkNodes = undefined
+                                  , sinkNodes = sinks
                                   , inEdges = ginv }
   forM_ [1..snd (I.bounds rank)] $ \i -> do
     putStr (show i)
