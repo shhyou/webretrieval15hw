@@ -54,7 +54,7 @@ pageRank page = snd . last . takeWhile ((> epsilon*epsilon) . l2norm2) $ zip ran
 graphParser :: Parser (Int, Graph)
 graphParser = do
   n <- string (pack "#maxnode") *> skipSpace *> decimal <?> "#maxnode"
-  g <- I.array (0,n) <$> many' (do
+  g <- I.accumArray (const id) (I.listArray (0,-1) []) (0,n) <$> many' (do
     (u, m) <- (,) <$> (skipSpace *> decimal <* char ':') <*> decimal
     ns <- I.listArray (0,m-1) <$> count m (skipSpace *> decimal)
     return (u, ns))
