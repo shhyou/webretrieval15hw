@@ -73,16 +73,17 @@ main = do
   sequence_ . map (\i -> M.writeArray inDegrees i . (+1) =<< M.readArray inDegrees i) . concatMap I.elems . I.elems $ g
   putStrLn "Sink nodes..."
   let !sinks = map fst . filter ((== 0) . rangeSize . I.bounds . snd) . I.assocs $ g
+  putStrLn ("Total " ++ show (length sinks) ++ " sink node(s).")
   putStrLn "Reversing graph..."
   ginv' <- M.newListArray (0,n-1) =<< mapM (\d -> M.newArray (0,d-1) 0) =<< M.getElems inDegrees
              :: IO (IOArray Int (IOUArray Int Int))
   let rev_loop 0 = return ()
       rev_loop u = do
-        degArray <- M.readArray ginv' u
-        M.getElems degArray >>= mapM_ (\v -> do
+        forM_ (I.elems (g!u)) $ \v -> do
           deg <- M.readArray inDegrees v
           M.writeArray inDegrees v (deg-1)
-          M.writeArray degArray (deg-1) u)
+          inNodes <- M.readArray ginv' v
+          M.writeArray inNodes (deg-1) u
         rev_loop (u-1)
   rev_loop (n-1)
   ginv <- I.listArray (0,n) <$> (mapM M.freeze =<< M.getElems ginv')
