@@ -31,7 +31,7 @@ epsilon = 1e-6
 damping = 0.85
 
 data PageRank = PageRank { numNodes :: Int
-                         , numNodesD :: Double
+                         , invNumNodes :: Double
                          , invOutDegree :: UArray Int Double
                          , sinkNodes :: [Int]
                          , inEdges :: Graph }
@@ -42,7 +42,7 @@ nextRank page rank = I.listArray (1, numNodes page)
   [ baseValue + damping * sum [ rank!v * invOutDegree page!v
                               | v <- I.elems (inEdges page!u) ]
   | u <- I.indices rank ]
-  where baseValue = 1 - damping + damping / numNodesD page * (sum . map (rank!) . sinkNodes $ page)
+  where baseValue = 1 - damping + damping * invNumNodes page * (sum . map (rank!) . sinkNodes $ page)
 
 l2norm2 :: (Vector, Vector) -> Double
 l2norm2 (v1, v2) = sum [((v1!i) - (v2!i))*((v1!i) - (v2!i)) | i <- I.indices v1 ]
@@ -90,7 +90,7 @@ main = do
   ginv <- I.listArray (1, n) <$> (mapM M.freeze =<< M.getElems ginv')
   putStrLn "Calculating page rank..."
   let !rank = pageRank $ PageRank { numNodes = n
-                                  , numNodesD = fromIntegral n
+                                  , invNumNodes = 1.0 / fromIntegral n
                                   , invOutDegree = invOutDegs
                                   , sinkNodes = sinks
                                   , inEdges = ginv }
