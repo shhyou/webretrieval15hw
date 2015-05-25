@@ -2,6 +2,7 @@
 
 module Main where
 
+import System.IO (stderr, hPutStrLn)
 import System.Exit (exitFailure)
 import System.Environment (getArgs)
 
@@ -64,19 +65,19 @@ graphParser = do
 
 main = do
   [input, output] <- getArgs
-  putStrLn $ "Reading " ++ input
+  hPutStrLn stderr $ "Reading " ++ input
   res <- parse graphParser <$> L.readFile input
   (n, g) <- case res of
     failed@(Fail _ _ _) -> print failed >> exitFailure
     Done _ ng -> return ng
-  putStrLn "Degrees..."
+  hPutStrLn stderr "Degrees..."
   let !invOutDegs = I.listArray (1, n) . map ((1.0 / ) . fromIntegral . rangeSize . I.bounds) $ I.elems g
   inDegrees <- M.newArray (1, n) 0 :: IO (IOUArray Int Int)
   sequence_ . map (\i -> M.writeArray inDegrees i . (+1) =<< M.readArray inDegrees i) . concatMap I.elems . I.elems $ g
-  putStrLn "Sink nodes..."
+  hPutStrLn stderr "Sink nodes..."
   let !sinks = map fst . filter ((== 0) . rangeSize . I.bounds . snd) . I.assocs $ g
-  putStrLn ("Total " ++ show (length sinks) ++ " sink node(s).")
-  putStrLn "Reversing graph..."
+  hPutStrLn stderr ("Total " ++ show (length sinks) ++ " sink node(s).")
+  hPutStrLn stderr "Reversing graph..."
   ginv' <- M.newListArray (1, n) =<< mapM (\d -> M.newArray (0, d-1) 0) =<< M.getElems inDegrees
              :: IO (IOArray Int (IOUArray Int Int))
   let rev_loop 0 = return ()
@@ -88,9 +89,9 @@ main = do
           M.writeArray inNodes (deg-1) u
         rev_loop (u-1)
   rev_loop n
-  putStrLn "Freezing array..."
+  hPutStrLn stderr "Freezing array..."
   ginv <- I.listArray (1, n) <$> (mapM M.freeze =<< M.getElems ginv')
-  putStrLn "Calculating page rank..."
+  hPutStrLn stderr "Calculating page rank..."
   let !rank = pageRank $ PageRank { numNodes = n
                                   , invOutDegree = invOutDegs
                                   , sinkNodes = sinks
