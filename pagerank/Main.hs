@@ -40,7 +40,7 @@ data PageRank = PageRank { numNodes :: Int
 
 -- pⱼ = (1 - d) + d Σᵢ 1 / Oᵢ pᵢ
 nextRank :: PageRank -> Vector -> Vector
-nextRank page rank = I.listArray (0, numNodes page - 1)
+nextRank page rank = I.listArray (1, numNodes page)
   [ baseValue + damping * sum [ rank!v / outDegreeD page!v
                               | v <- I.elems (inEdges page!u) ]
   | u <- I.indices rank ]
@@ -51,14 +51,14 @@ l2norm2 (v1, v2) = sum [((v1!i) - (v2!i))*((v1!i) - (v2!i)) | i <- I.indices v1 
 
 pageRank :: PageRank -> Vector
 pageRank page = snd . last . takeWhile ((> epsilon*epsilon) . l2norm2) $ zip ranks (tail ranks)
-  where ranks = iterate (nextRank page) (I.listArray (0, numNodes page - 1) [1.0/numNodesD page..])
+  where ranks = iterate (nextRank page) (I.listArray (1, numNodes page) [1.0..])
 
 graphParser :: Parser (Int, Graph)
 graphParser = do
   n <- string (pack "#maxnode") *> skipSpace *> decimal <?> "#maxnode"
-  g <- I.accumArray (const id) (I.listArray (0,-1) []) (0,n) <$> many' (do
+  g <- I.accumArray (const id) (I.listArray (0, -1) []) (1, n) <$> many' (do
     (u, m) <- (,) <$> (skipSpace *> decimal <* char ':') <*> decimal
-    ns <- I.listArray (0,m-1) <$> count m (skipSpace *> decimal)
+    ns <- I.listArray (0, m-1) <$> count m (skipSpace *> decimal)
     return (u, ns))
   return (n, g)
 
@@ -70,14 +70,14 @@ main = do
     failed@(Fail _ _ _) -> print failed >> exitFailure
     Done _ ng -> return ng
   putStrLn "Degrees..."
-  let !outDegrees = I.listArray (0,n) . map (fromIntegral . rangeSize . I.bounds) $ I.elems g
-  inDegrees <- M.newArray (0, n) 0 :: IO (IOUArray Int Int)
+  let !outDegrees = I.listArray (1, n) . map (fromIntegral . rangeSize . I.bounds) $ I.elems g
+  inDegrees <- M.newArray (1, n) 0 :: IO (IOUArray Int Int)
   sequence_ . map (\i -> M.writeArray inDegrees i . (+1) =<< M.readArray inDegrees i) . concatMap I.elems . I.elems $ g
   putStrLn "Sink nodes..."
   let !sinks = map fst . filter ((== 0) . rangeSize . I.bounds . snd) . I.assocs $ g
   putStrLn ("Total " ++ show (length sinks) ++ " sink node(s).")
   putStrLn "Reversing graph..."
-  ginv' <- M.newListArray (0,n) =<< mapM (\d -> M.newArray (0,d-1) 0) =<< M.getElems inDegrees
+  ginv' <- M.newListArray (1, n) =<< mapM (\d -> M.newArray (0, d-1) 0) =<< M.getElems inDegrees
              :: IO (IOArray Int (IOUArray Int Int))
   let rev_loop 0 = return ()
       rev_loop u = do
@@ -87,12 +87,12 @@ main = do
           inNodes <- M.readArray ginv' v
           M.writeArray inNodes (deg-1) u
         rev_loop (u-1)
-  rev_loop (n-1)
+  rev_loop n
   putStrLn "Freezing array..."
-  ginv <- I.listArray (0,n) <$> (mapM M.freeze =<< M.getElems ginv')
+  ginv <- I.listArray (1, n) <$> (mapM M.freeze =<< M.getElems ginv')
   putStrLn "Calculating page rank..."
-  let !rank = pageRank $ PageRank { numNodes = n+1
-                                  , numNodesD = fromIntegral (n+1)
+  let !rank = pageRank $ PageRank { numNodes = n
+                                  , numNodesD = fromIntegral n
                                   , outDegreeD = outDegrees
                                   , sinkNodes = sinks
                                   , inEdges = ginv }
