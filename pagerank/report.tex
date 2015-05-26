@@ -1,0 +1,90 @@
+\documentclass{article}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{enumerate}
+\usepackage[margin=3cm]{geometry}
+\begin{document}
+\title{WebRetrieval Assignment 2, PageRank}
+\date{}
+\author{b00902107 Shu-Hung You}
+\maketitle
+\section{Implementation}
+\paragraph{Data Structures} All data used in the implementation of
+PageRank algorithm is in the following data type
+
+\begin{verbatim}
+data PageRank = PageRank { eps :: Double , damp :: Double
+                         , numNodes :: Int
+                         , invOutDegree :: UArray Int Double
+                         , sinkNodes :: [Int]
+                         , sinkNodesWeight :: Double
+                         , inEdges :: Graph }
+\end{verbatim}
+
+A (sparse) graph $G$ is represented by an array of type
+\texttt{g :: Array Int (UArray Int Int)}, where the $i$-th element \texttt{g!i}
+stores the adjacent vertices of vertex $i$. The \texttt{inEdges} field stores
+$G^T$ where $G$ is the given graph.
+
+\texttt{sinkNodes} stores vertices with zero out-degree. This information is
+utilized to avoid building out edges for sink nodes.
+
+\paragraph{Algorithm} The algorithm is derived from the following formula.
+Sink nodes are separated from non-sink nodes to avoid redundant computation.
+Other parts are just the direct translation of the formula.
+
+\[\begin{aligned}
+p_u
+&= 1-d + d\sum_{v,(v,u)\in E}\frac{p_v}{O_v} \\
+&= 1-d + d\sum_{v,\deg(v)=0}\frac{p_v}{N} + d\sum_{v,(v,u)\in E}\frac{p_v}{\deg(v)}
+\end{aligned}\]
+
+\begin{verbatim}
+nextRank :: PageRank -> Vector -> Vector
+nextRank page rank = I.listArray (1, numNodes page)
+  [ baseValue + damping * sum [ rank!v * invOutDegs!v | v <- I.elems (gT!u) ]
+  | u <- I.indices rank ]
+  where baseValue = 1 - damping + sinkWeight * (sum . map (rank!) . sinkNodes $ page)
+        (damping, gT, invOutDegs, sinkWeight =
+          (damp page, inEdges page, ingOutDegree page, sinkNodesWeight page)
+\end{verbatim}
+
+\noindent The program simply iterates until the rank vector converges.
+
+\begin{verbatim}
+pageRank :: PageRank -> [Vector]
+pageRank page = map snd . takeWhile ((> epsilon*epsilon) . l2norm2) $ zip ranks (tail ranks)
+  where ranks = iterate (nextRank page) (I.listArray (1, numNodes page) [1.0..])
+\end{verbatim}
+
+\section{Discussion}
+This implementation is evaluated against the three provided test cases. The
+result is shown in the figure. Interestingly, all three test cases take
+approximately 200 iterations to converge.
+\begin{center}
+  \begin{tabular}{|c|r|r|r|r|r|}
+  \hline
+  \textbf{test} & \textbf{nodes} & \textbf{non-sink nodes} & \textbf{iteration} & \textbf{time A} & \textbf{time B} \\
+  \hline
+  \texttt{cs.stanford.2004-10.graph} & 50184 & 41215 & 180 & 20.15s & 13.34s \\
+  \hline
+  \texttt{stanford-08-03.graph} & 350004 & 111549 & 204 & 157.11s & 116.91s \\
+  \hline
+  \texttt{03-2006-wk3.graph} & 1768330 & 1512273 & 221 & 2978.30s & 2994.63s \\
+  \hline
+  \end{tabular}
+\end{center}
+\paragraph{Evaluate $l^2$-norm less often.} Originally, the algorithm evaluates
+$l^2$-norm in every iteration. The overall computation time is shown in the
+\textbf{time A} column. By evaluate $l^2$-norm only every 5 iterations, the
+computation time for small test cases dropped about 25\%. However, since in the
+last test case each iteration takes much longer time, the time spent by
+redundant iterations canceled out the improvement.
+
+\paragraph{A Possible Optimization.} Another possibility is to collapse the
+sink nodes into only one node with weighted edges, and reconstruct the PageRank
+for individual nodes after the iteration converges. This effectively replaces
+the $\sum_{\deg(v)=0} p_v/N$ term in the formula by $p_{v^*}/N$ where $v^*$ is
+the collpased node. I didn't implement this optimization since the bottleneck
+of the Haskell implementation isn't in this part (and $85.5\%$ nodes in the
+last test case are not sink nodes).
+\end{document}

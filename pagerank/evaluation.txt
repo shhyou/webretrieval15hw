@@ -1,0 +1,3 @@
+    41216 data/cs.stanford.2004-10.graph      20.15       13.34
+   111550 data/stanford-08-03.graph          157.11      116.91
+  1512274 data/03-2006-wk3.graph            2978.30     2994.63
