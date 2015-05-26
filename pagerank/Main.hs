@@ -2,7 +2,7 @@
 
 module Main where
 
-import System.IO (stderr, hPutStrLn)
+import System.IO (stderr, hPutStrLn, hPutStr, hPutChar, hPrint, withFile, IOMode(..))
 import System.Exit (exitFailure)
 import System.Environment (getArgs)
 
@@ -17,7 +17,6 @@ import Data.Array.IArray ((!))
 import qualified Data.Array.IArray as I
 import qualified Data.Array.MArray as M
 
-
 import qualified Data.ByteString.Lazy as L
 import Data.ByteString.Char8 (pack)
 
@@ -27,11 +26,9 @@ import Data.Attoparsec.ByteString.Lazy (Parser(), Result(..), parse)
 type Vector = UArray Int Double
 type Graph  = Array Int (UArray Int Int)
 
-
-epsilon = 1e-6
-damping = 0.85
-
-data PageRank = PageRank { numNodes :: Int
+data PageRank = PageRank { eps :: Double
+                         , damp :: Double
+                         , numNodes :: Int
                          , invOutDegree :: UArray Int Double
                          , sinkNodes :: [Int]
                          , sinkNodesWeight :: Double
@@ -44,15 +41,17 @@ nextRank page rank = I.listArray (1, numNodes page)
                               | v <- I.elems (inEdges page!u) ]
   | u <- I.indices rank ]
   where !baseValue = 1 - damping + sinkNodesWeight page * (sum . map (rank!) . sinkNodes $ page)
+        damping = damp page
 
 l2norm2 :: (Vector, Vector) -> Double
 l2norm2 (v1, v2) = sum [((v1!i) - (v2!i))*((v1!i) - (v2!i)) | i <- I.indices v1 ]
 
-pageRank :: PageRank -> Vector
-pageRank page = snd . last . takeWhile ((> epsilon*epsilon) . l2norm2) $ zip ranks' (tail ranks')
+pageRank :: PageRank -> [Vector]
+pageRank page = map snd . takeWhile ((> epsilon*epsilon) . l2norm2) $ zip ranks' (tail ranks')
   where ranks = iterate (nextRank page) (I.listArray (1, numNodes page) [1.0..])
         ranks' = every5 ranks
         every5 xs = z:every5 zs where z:zs = drop 4 xs
+        epsilon = eps page
 
 graphParser :: Parser (Int, Graph)
 graphParser = do
@@ -63,8 +62,29 @@ graphParser = do
     return (u, ns))
   return (n, g)
 
+data Config = Config { inputFile :: String
+                     , outputFile :: String
+                     , damping :: Double
+                     , epsilon :: Double }
+            deriving (Show)
+
+defaultConfig = Config { inputFile = error "No input file specified"
+                       , outputFile = "output.pagerank"
+                       , damping = 0.85
+                       , epsilon = 1e-6 }
+
+parseOpts :: Config -> [String] -> Config
+parseOpts c [input]         = c { inputFile = input }
+parseOpts c ("-o":out:args) = parseOpts (c { outputFile = out }) args
+parseOpts c ("-e":e:args)   = parseOpts (c { epsilon = read e }) args
+parseOpts c ("-d":d:args)   = parseOpts (c { damping = read d }) args
+
 main = do
-  [input, output] <- getArgs
+  config@(Config { inputFile = input
+                 , outputFile = output
+                 , damping = d
+                 , epsilon = e }) <- parseOpts defaultConfig <$> getArgs
+  hPutStrLn stderr $ "Running with config '" ++ show config ++ "'"
   hPutStrLn stderr $ "Reading " ++ input
   res <- parse graphParser <$> L.readFile input
   (n, g) <- case res of
@@ -91,13 +111,20 @@ main = do
   rev_loop n
   hPutStrLn stderr "Freezing array..."
   ginv <- I.listArray (1, n) <$> (mapM M.freeze =<< M.getElems ginv')
-  hPutStrLn stderr "Calculating page rank..."
-  let !rank = pageRank $ PageRank { numNodes = n
-                                  , invOutDegree = invOutDegs
-                                  , sinkNodes = sinks
-                                  , sinkNodesWeight = damping / fromIntegral n
-                                  , inEdges = ginv }
-  forM_ (range (I.bounds rank)) $ \i -> do
-    putStr (show i)
-    putChar ':'
-    print (rank!i)
+  hPutStr stderr "Calculating page rank..."
+  let !ranks = pageRank $ PageRank { eps = e
+                                   , damp = d
+                                   , numNodes = n
+                                   , invOutDegree = invOutDegs
+                                   , sinkNodes = sinks
+                                   , sinkNodesWeight = d / fromIntegral n
+                                   , inEdges = ginv }
+  let loop [r]    = return r
+      loop (r:rs) = hPutChar stderr '.' >> loop rs
+  rank <- loop ranks
+  hPutStrLn stderr "\nOutputing..."
+  withFile output WriteMode $ \fout ->
+    forM_ (range (I.bounds rank)) $ \i -> do
+      hPutStr fout (show i)
+      hPutChar fout ':'
+      hPrint fout (rank!i)
