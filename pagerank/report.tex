@@ -76,9 +76,10 @@ approximately 200 iterations to converge.
 \paragraph{Evaluate $l^2$-norm less often.} Originally, the algorithm evaluates
 $l^2$-norm in every iteration. The overall computation time is shown in the
 \textbf{time A} column. By evaluate $l^2$-norm only every 5 iterations, the
-computation time for small test cases dropped about 25\%. However, since in the
-last test case each iteration takes much longer time, the time spent by
-redundant iterations canceled out the improvement.
+computation time for small test cases dropped about 25\% as shown
+in the \textbf{time B} column. However, since
+ each iteration takes much longer time in the last test case, the time spent by
+redundant iterations cancelled out the improvement.
 
 \paragraph{A Possible Optimization.} Another possibility is to collapse the
 sink nodes into only one node with weighted edges, and reconstruct the PageRank
