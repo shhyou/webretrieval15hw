@@ -23,6 +23,8 @@ import Data.ByteString.Char8 (pack)
 import Data.Attoparsec.ByteString.Char8 (char, decimal, string, skipSpace, many', count, (<?>))
 import Data.Attoparsec.ByteString.Lazy (Parser(), Result(..), parse)
 
+optLessL2Norm = False
+
 type Vector = UArray Int Double
 type Graph  = Array Int (UArray Int Int)
 
@@ -49,7 +51,7 @@ l2norm2 (v1, v2) = sum [((v1!i) - (v2!i))*((v1!i) - (v2!i)) | i <- I.indices v1 
 pageRank :: PageRank -> [Vector]
 pageRank page = map snd . takeWhile ((> epsilon*epsilon) . l2norm2) $ zip ranks' (tail ranks')
   where ranks = iterate (nextRank page) (I.listArray (1, numNodes page) [1.0..])
-        ranks' = every5 ranks
+        ranks' = (if optLessL2Norm then every5 else id) ranks
         every5 xs = z:every5 zs where z:zs = drop 4 xs
         epsilon = eps page
 
