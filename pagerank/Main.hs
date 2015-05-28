@@ -31,16 +31,15 @@ type Graph  = Array Int (UArray Int Int)
 data PageRank = PageRank { eps :: Double
                          , damp :: Double
                          , numNodes :: Int
-                         , invOutDegree :: UArray Int Double
+                         , outWeight :: UArray Int Double
                          , sinkNodes :: [Int]
                          , sinkNodesWeight :: Double
                          , inEdges :: Graph }
 
 -- pⱼ = (1 - d) + d Σᵢ 1 / Oᵢ pᵢ
 nextRank :: PageRank -> Vector -> Vector
-nextRank page rank = I.listArray (1, numNodes page)
-  [ baseValue + damping * sum [ rank!v * invOutDegree page!v
-                              | v <- I.elems (inEdges page!u) ]
+nextRank page rank = I.accumArray (+) baseValue (1, numNodes page)
+  [ (u, sum [ rank!v * outWeight page!v | v <- I.elems (inEdges page!u) ])
   | u <- I.indices rank ]
   where !baseValue = 1 - damping + sinkNodesWeight page * (sum . map (rank!) . sinkNodes $ page)
         damping = damp page
@@ -50,7 +49,7 @@ l2norm2 (v1, v2) = sum [((v1!i) - (v2!i))*((v1!i) - (v2!i)) | i <- I.indices v1 
 
 pageRank :: PageRank -> [Vector]
 pageRank page = map snd . takeWhile ((> epsilon*epsilon) . l2norm2) $ zip ranks' (tail ranks')
-  where ranks = iterate (nextRank page) (I.listArray (1, numNodes page) [1.0..])
+  where ranks = iterate (nextRank page) (I.listArray (1, numNodes page) (repeat 1.0))
         ranks' = (if optLessL2Norm then every5 else id) ranks
         every5 xs = z:every5 zs where z:zs = drop 4 xs
         epsilon = eps page
@@ -93,7 +92,7 @@ main = do
     failed@(Fail _ _ _) -> print failed >> exitFailure
     Done _ ng -> return ng
   hPutStrLn stderr "Degrees..."
-  let !invOutDegs = I.listArray (1, n) . map ((1.0 / ) . fromIntegral . rangeSize . I.bounds) $ I.elems g
+  let !invOutDegs = I.listArray (1, n) . map ((d / ) . fromIntegral . rangeSize . I.bounds) $ I.elems g
   inDegrees <- M.newArray (1, n) 0 :: IO (IOUArray Int Int)
   sequence_ . map (\i -> M.writeArray inDegrees i . (+1) =<< M.readArray inDegrees i) . concatMap I.elems . I.elems $ g
   hPutStrLn stderr "Sink nodes..."
@@ -113,11 +112,11 @@ main = do
   rev_loop n
   hPutStrLn stderr "Freezing array..."
   ginv <- I.listArray (1, n) <$> (mapM M.freeze =<< M.getElems ginv')
-  hPutStr stderr "Calculating page rank..."
+  hPutStr stderr "Calculating PageRank"
   let !ranks = pageRank $ PageRank { eps = e
                                    , damp = d
                                    , numNodes = n
-                                   , invOutDegree = invOutDegs
+                                   , outWeight = invOutDegs
                                    , sinkNodes = sinks
                                    , sinkNodesWeight = d / fromIntegral n
                                    , inEdges = ginv }
