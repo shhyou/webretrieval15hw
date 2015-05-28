@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cstdlib>
 #include <vector>
 #include <algorithm>
 
@@ -27,7 +28,7 @@ void next_rank(const pagerank_t &page, const vector<double> &p, vector<double> &
 
 double l2norm2(const pagerank_t& page, const vector<double> &p1, const vector<double> &p2) {
   double diff = 0;
-  for (auto cit = p1.cbegin(), cjt = p2.cbegin(); diff <= page.eps && cit != p1.cend(); ++cit, ++cjt)
+  for (auto cit = p1.cbegin(), cjt = p2.cbegin(); diff <= page.eps*page.eps && cit != p1.cend(); ++cit, ++cjt)
     diff += (*cit - *cjt)*(*cit - *cjt);
   return diff;
 }
@@ -38,7 +39,7 @@ vector<double> iter_pagerank(const pagerank_t &page) {
     next_rank(page, p, p_nxt);
     p.swap(p_nxt);
     fprintf(stderr, ".");
-  } while (l2norm2(page, p, p_nxt) > page.eps);
+  } while (l2norm2(page, p, p_nxt) > page.eps*page.eps);
   return std::move(p);
 }
 
@@ -52,6 +53,18 @@ int gn() {
     ch = getchar();
   }
   return val;
+}
+
+void pn(int n) {
+  char buf[32], *ptr;
+  if (n == 0) {
+    putchar('0');
+  } else {
+    ptr = buf + 31;
+    for (; n > 0; n /= 10)
+      *(--ptr) = n%10 + '0';
+    fwrite(ptr, 31 - (ptr - buf), 1, stdout);
+  }
 }
 
 int main() {
@@ -97,7 +110,20 @@ int main() {
 
   fprintf(stderr, "\nOutputing...\n");
 
-  for (int i = 0; i < page.n; ++i)
-    printf("%d:%.10f\n", i+1, p[i]);
+  for (int i = 0; i < page.n; ++i) {
+    pn(i+1);
+    putchar(':');
+    const int d = static_cast<int>(p[i]);
+    pn(d);
+    putchar('.');
+    int f = static_cast<int>((p[i]-d) * 1000000 + 0.5);
+    putchar('0' + f/100000); f %= 100000;
+    putchar('0' + f/10000); f %= 10000;
+    putchar('0' + f/1000); f %= 1000;
+    putchar('0' + f/100); f %= 100;
+    putchar('0' + f/10); f %= 10;
+    putchar('0' + f);
+    putchar('\n');
+  }
   return 0;
 }
