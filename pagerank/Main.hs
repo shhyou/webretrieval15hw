@@ -4,7 +4,7 @@ module Main where
 
 import System.IO (stderr, hPutStrLn, hPutStr, hPutChar, hPrint, withFile, IOMode(..))
 import System.Exit (exitFailure)
-import System.Environment (getArgs)
+import System.Environment (getArgs, withArgs)
 
 import Control.Applicative ((<$>), Applicative(..))
 import Control.Monad
@@ -38,10 +38,13 @@ data PageRank = PageRank { eps :: Double
 
 -- pⱼ = (1 - d) + d Σᵢ 1 / Oᵢ pᵢ
 nextRank :: PageRank -> Vector -> Vector
-nextRank page rank = I.accumArray (+) baseValue (1, numNodes page)
-  [ (u, sum [ rank!v * outWeight page!v | v <- I.elems (inEdges page!u) ])
-  | u <- I.indices rank ]
-  where !baseValue = 1 - damping + sinkNodesWeight page * (sum . map (rank!) . sinkNodes $ page)
+nextRank page rank = I.accumArray (+) baseValue (1, numNodes page) $
+  (++)
+    (map (\u -> (u, -sinkWeight*rank!u)) $ sinkNodes page)
+    [ (u, sum [ rank!v * outWeight page!v | v <- I.elems (inEdges page!u) ])
+    | u <- I.indices rank ]
+  where !baseValue = 1 - damping + sinkWeight * (sum . map (rank!) . sinkNodes $ page)
+        sinkWeight = sinkNodesWeight page
         damping = damp page
 
 l2norm2 :: (Vector, Vector) -> Double
@@ -118,7 +121,7 @@ main = do
                                    , numNodes = n
                                    , outWeight = invOutDegs
                                    , sinkNodes = sinks
-                                   , sinkNodesWeight = d / fromIntegral n
+                                   , sinkNodesWeight = d / fromIntegral (n-1)
                                    , inEdges = ginv }
   let loop [r]    = return r
       loop (r:rs) = hPutChar stderr '.' >> loop rs
@@ -129,3 +132,7 @@ main = do
       hPutStr fout (show i)
       hPutChar fout ':'
       hPrint fout (rank!i)
+
+test :: String -> IO ()
+test filename = withArgs ["-o", "test.rank", filename] main >> readFile "test.rank" >>= putStr
+
