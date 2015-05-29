@@ -34,18 +34,21 @@ Other parts are just the direct translation of the formula.
 
 \[\begin{aligned}
 p_u
-&= 1-d + d\sum_{v,(v,u)\in E}\frac{p_v}{O_v} \\
-&= 1-d + d\sum_{v,\deg(v)=0}\frac{p_v}{N} + d\sum_{v,(v,u)\in E}\frac{p_v}{\deg(v)}
+&= 1-d + d\sum_{(v,u)\in E}\frac{p_v}{O_v} \\
+&= 1-d + d\sum_{v\ne u,\deg(v)=0}\frac{p_v}{N-1} + d\sum_{(v,u)\in E}\frac{p_v}{\deg(v)} \\
+&= \left(1-d + \frac{d}{N-1}\sum_{\deg(v)=0}\frac{p_v}{N-1}\right) + d\sum_{(v,u)\in E}\frac{p_v}{\deg(v)} - \frac{d}{N-1} p_u[\![ v=u ]\!]
 \end{aligned}\]
 
 \begin{verbatim}
 nextRank :: PageRank -> Vector -> Vector
-nextRank page rank = I.listArray (1, numNodes page)
-  [ baseValue + damping * sum [ rank!v * invOutDegs!v | v <- I.elems (gT!u) ]
-  | u <- I.indices rank ]
-  where baseValue = 1 - damping + sinkWeight * (sum . map (rank!) . sinkNodes $ page)
-        (damping, gT, invOutDegs, sinkWeight =
-          (damp page, inEdges page, ingOutDegree page, sinkNodesWeight page)
+nextRank page rank = I.accumArray (+) baseValue (1, numNodes page) $
+  (++)
+    (map (\u -> (u, -sinkWeight*rank!u)) $ sinkNodes page) -- remove self-loops
+    [ (u, sum [ rank!v * outWeight page!v | v <- I.elems (inEdges page!u) ])
+    | u <- I.indices rank ]
+  where !baseValue = 1 - damping + sinkWeight * (sum . map (rank!) . sinkNodes $ page)
+        sinkWeight = sinkNodesWeight page
+        damping = damp page
 \end{verbatim}
 
 \noindent The program simply iterates until the rank vector converges.
@@ -57,19 +60,19 @@ pageRank page = map snd . takeWhile ((> epsilon*epsilon) . l2norm2) $ zip ranks 
 \end{verbatim}
 
 \section{Discussion}
-This implementation is evaluated against the three provided test cases. The
-result is shown in the figure. Interestingly, all three test cases take
-approximately 200 iterations to converge.
+This implementation is evaluated against the three provided test cases on
+\texttt{linux20}. The result is shown in the figure. Interestingly, all three
+test cases take approximately 100 iterations to converge.
 \begin{center}
   \begin{tabular}{|c|r|r|r|r|r|}
   \hline
   \textbf{test} & \textbf{nodes} & \textbf{non-sink nodes} & \textbf{iteration} & \textbf{time A} & \textbf{time B} \\
   \hline
-  \texttt{cs.stanford.2004-10.graph} & 50184 & 41215 & 180 & 20.15s & 13.34s \\
+  \texttt{cs.stanford.2004-10.graph} & 50184 & 41215 & 102 & 10.86s & 7.41s \\
   \hline
-  \texttt{stanford-08-03.graph} & 350004 & 111549 & 204 & 157.11s & 116.91s \\
+  \texttt{stanford-08-03.graph} & 350004 & 111549 & 107 & 82.27s & 60.80s \\
   \hline
-  \texttt{03-2006-wk3.graph} & 1768330 & 1512273 & 221 & 2978.30s & 2994.63s \\
+  \texttt{03-2006-wk3.graph} & 1768330 & 1512273 & 121 & 1625.30s & 1542.63s \\
   \hline
   \end{tabular}
 \end{center}
