@@ -23,7 +23,7 @@ import Data.ByteString.Char8 (pack)
 import Data.Attoparsec.ByteString.Char8 (char, decimal, string, skipSpace, many', count, (<?>))
 import Data.Attoparsec.ByteString.Lazy (Parser(), Result(..), parse)
 
-optLessL2Norm = False
+optLessL2Norm = True
 
 type Vector = UArray Int Double
 type Graph  = Array Int (UArray Int Int)
