@@ -14,12 +14,15 @@ struct pagerank_t {
 };
 
 void next_rank(const pagerank_t &page, const vector<double> &p, vector<double> &p_nxt) {
+  const double sinkWeight = page.damping/(page.n - 1);
   double ins_z = 0;
   for (int v : page.sinks)
     ins_z += p[v];
-  const double baseVal = 1 - page.damping + page.damping/page.n * ins_z;
+  const double baseVal = 1 - page.damping + sinkWeight * ins_z;
   for (double &p : p_nxt)
     p = baseVal;
+  for (int u : page.sinks)
+    p_nxt[u] -= sinkWeight*p[u];
   for (int u = 0, *pv = page.gT; u != page.n; ++u) {
     for (; pv != page.gT + page.ed[u]; ++pv)
       p_nxt[u] += p[*pv]*page.invOutWeight[*pv];
